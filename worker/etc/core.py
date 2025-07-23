@@ -64,10 +64,22 @@ class Core:
             return
         raise Exception(f"{step_name}保存失败，响应内容：{resp_text[:200]}")
 
+    def assert_api_success(self, resp, api_name="接口"):  # 只断言code==200
+        import json
+        if isinstance(resp, str):
+            try:
+                resp = json.loads(resp)
+            except Exception:
+                raise Exception(f"{api_name} 响应不是有效的JSON: {resp}")
+        if resp.get("code") != 200:
+            msg = resp.get("msg") or resp.get("message") or str(resp)
+            raise Exception(f"{api_name} 失败，原因: {msg}，返回内容: {resp}")
+
     # 分步方法
     def step1_check_car_num(self):
         try:
             result = self.api.check_car_num(self.params)
+            self.assert_api_success(result, "校验车牌接口")
             self._update_progress(5, "1. 校验车牌完成")
             return result
         except Exception as e:
@@ -78,6 +90,7 @@ class Core:
     def step2_check_is_not_car_num(self):
         try:
             result = self.api.check_is_not_car_num(self.params)
+            self.assert_api_success(result, "校验是否可申办接口")
             self._update_progress(10, "2. 校验是否可申办完成")
             return result
         except Exception as e:
@@ -88,6 +101,7 @@ class Core:
     def step3_get_channel_use_address(self):
         try:
             result = self.api.get_channel_use_address(self.params)
+            self.assert_api_success(result, "获取渠道地址接口")
             self._update_progress(15, "3. 获取渠道地址完成")
             return result
         except Exception as e:
@@ -98,6 +112,7 @@ class Core:
     def step4_get_optional_service_list(self):
         try:
             result = self.api.get_optional_service_list(self.params)
+            self.assert_api_success(result, "获取可选服务接口")
             self._update_progress(20, "4. 获取可选服务完成")
             return result
         except Exception as e:
@@ -108,6 +123,7 @@ class Core:
     def step5_submit_car_num(self):
         try:
             res = self.api.submit_car_num(self.params)
+            self.assert_api_success(res, "提交车牌接口")
             self.order_id = res["data"]["orderId"]
             self._update_progress(30, "5. 提交车牌完成")
             return res
@@ -119,6 +135,7 @@ class Core:
     def step6_protocol_add(self):
         try:
             result = self.api.protocol_add(self.order_id, self.params)
+            self.assert_api_success(result, "协议签署接口")
             self._update_progress(40, "6. 协议签署完成")
             return result
         except Exception as e:
@@ -129,6 +146,7 @@ class Core:
     def step7_submit_identity_with_bank_sign(self):
         try:
             res = self.api.submit_identity_with_bank_sign(self.order_id, self.params)
+            self.assert_api_success(res, "提交身份和银行卡信息接口")
             self.sign_order_id = res["data"]["signOrderId"]
             self.verify_code_no = res["data"]["verifyCodeNo"]
             # 保存etccardUserId，供后续步骤使用
@@ -158,6 +176,7 @@ class Core:
         try:
             code = verify_code if verify_code is not None else self.params.get("code", "")
             result = self.api.sign_check(self.params, code, self.verify_code_no, self.sign_order_id)
+            self.assert_api_success(result, "签约校验接口")
             self._update_progress(60, "8. 签约校验完成")
             return result
         except Exception as e:
@@ -169,6 +188,7 @@ class Core:
         try:
             oid = order_id or self.order_id
             res = self.api.save_vehicle_info(self.params, oid)
+            self.assert_api_success(res, "保存车辆信息接口")
             if res and res.get("data") and res["data"].get("etccardUserId"):
                 self.params["etccardUserId"] = res["data"]["etccardUserId"]
             self._update_progress(70, "9. 保存车辆信息完成")
@@ -182,6 +202,7 @@ class Core:
         try:
             oid = order_id or self.order_id
             result = self.api.optional_service_update(oid)
+            self.assert_api_success(result, "可选服务更新接口")
             self._update_progress(80, "10. 可选服务更新完成")
             return result
         except Exception as e:
@@ -199,6 +220,7 @@ class Core:
                 # 生成当前日期的YYMMDD格式验证码
                 code = datetime.now().strftime("%y%m%d")
             result = self.api.withhold_pay(self.params, oid, code)
+            self.assert_api_success(result, "代扣支付接口")
             self._update_progress(85, "11. 代扣支付完成")
             return result
         except Exception as e:

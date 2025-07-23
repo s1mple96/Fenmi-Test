@@ -18,18 +18,11 @@ def start_etc_apply_flow(params, ui):
         QMessageBox.warning(None, "参数错误", str(e))
         return
     def progress_callback(percent, msg):
-        # 只通过信号更新UI，不在工作线程中直接操作UI控件
-        # 只发送一次信号，避免重复
+        # 通过信号更新UI进度条和日志
+        if hasattr(ui, 'progress_signal'):
+            ui.progress_signal.emit(percent, msg)
         if hasattr(ui, 'log_signal'):
             ui.log_signal.emit(msg)
-        # 移除直接UI更新，改为通过信号
-        # if hasattr(ui, 'log_text') and hasattr(ui.log_text, 'insertPlainText'):
-        #     current_text = ui.log_text.toPlainText()
-        #     if not current_text.endswith(msg):  # 简单去重
-        #         # 在开头插入新日志，并添加换行符
-        #         new_log = f"{msg}\n"
-        #         ui.log_text.setPlainText(new_log + current_text)
-        # update_progress(getattr(ui, 'progress_bar', None), getattr(ui, 'progress_label', None), percent, msg)
     def run_to_step6():
         browser_cookies = {
             "JSESSIONID": "62513d79-39c2-4559-9afc-bc4deb4af7a0",

@@ -167,40 +167,55 @@ class FourElementsParser:
     
     @staticmethod
     def extract_elements(lines):
-        """从行数据中提取四要素"""
         elements = {}
-        
+        # 字段名映射
+        field_mapping = {
+            'name': ['name', '姓名', 'user_name', 'username', 'real_name'],
+            'id_code': ['id_code', 'idcode', '身份证', '身份证号', 'id_number', 'idnumber'],
+            'phone': ['phone', '手机号', '手机', 'mobile', 'tel', 'telephone'],
+            'bank_no': ['bank_no', 'bankno', '银行卡号', '银行卡', 'card_number', 'cardnumber']
+        }
+        # 支持多种冒号
+        colon_pattern = r'[:：]'
         for line in lines:
-            if isinstance(line, list):
-                # CSV格式，line是列表
-                text = ' '.join(line)
-            else:
-                # 普通文本格式
-                text = str(line)
-            
-            # 提取身份证号
-            id_match = re.search(r'\d{17}[\dXx]', text)
-            if id_match and 'id_code' not in elements:
-                elements['id_code'] = id_match.group()
-            
-            # 提取手机号
-            phone_match = re.search(r'1[3-9]\d{9}', text)
-            if phone_match and 'phone' not in elements:
-                elements['phone'] = phone_match.group()
-            
-            # 提取银行卡号
-            bank_match = re.search(r'\d{16,19}', text)
-            if bank_match and 'bank_no' not in elements:
-                bank_no = bank_match.group()
-                # 简单验证银行卡号长度
-                if 16 <= len(bank_no) <= 19:
-                    elements['bank_no'] = bank_no
-            
-            # 提取姓名（2-4个中文字符）
-            name_match = re.search(r'[\u4e00-\u9fa5]{2,4}', text)
-            if name_match and 'name' not in elements:
-                elements['name'] = name_match.group()
-        
+            # 先尝试“字段名:值”格式
+            match = re.match(r'\s*([\w\u4e00-\u9fa5]+)\s*' + colon_pattern + r'\s*(.+)', line, re.IGNORECASE)
+            if match:
+                key_raw = match.group(1).strip().lower()
+                value = match.group(2).strip()
+                for k, names in field_mapping.items():
+                    if any(key_raw == n.lower() for n in names):
+                        elements[k] = value
+                        break
+        # 如果没提全，再用原有正则补充
+        if len(elements) < 4:
+            for line in lines:
+                if isinstance(line, list):
+                    text = ' '.join(line)
+                else:
+                    text = str(line)
+                # 提取身份证号
+                if 'id_code' not in elements:
+                    id_match = re.search(r'\d{17}[\dXx]', text)
+                    if id_match:
+                        elements['id_code'] = id_match.group()
+                # 提取手机号
+                if 'phone' not in elements:
+                    phone_match = re.search(r'1[3-9]\d{9}', text)
+                    if phone_match:
+                        elements['phone'] = phone_match.group()
+                # 提取银行卡号
+                if 'bank_no' not in elements:
+                    bank_match = re.search(r'\d{16,19}', text)
+                    if bank_match:
+                        bank_no = bank_match.group()
+                        if 16 <= len(bank_no) <= 19:
+                            elements['bank_no'] = bank_no
+                # 提取姓名（2-4个中文字符）
+                if 'name' not in elements:
+                    name_match = re.search(r'[\u4e00-\u9fa5]{2,4}', text)
+                    if name_match:
+                        elements['name'] = name_match.group()
         return elements
     
     @staticmethod

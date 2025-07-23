@@ -86,3 +86,6 @@ config/connections.json
 
 # Data files
 data/vin_list.txt 
+/build_simple.py
+/docs/四要素拖拽功能说明.md
+/build_etc_tool.py

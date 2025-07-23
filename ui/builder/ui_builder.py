@@ -61,6 +61,8 @@ def build_progress_row(ui):
     ui.progress_bar.setMinimum(0)
     ui.progress_bar.setMaximum(100)
     ui.progress_bar.setValue(0)
+    ui.progress_bar.setFormat("%p%")  # 百分比显示在条内
+    ui.progress_bar.setAlignment(Qt.AlignCenter)
     return ui.progress_label, ui.progress_bar
 
 def build_four_elements_group(ui):

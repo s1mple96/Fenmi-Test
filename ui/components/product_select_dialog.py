@@ -7,11 +7,14 @@ class ProductSelectDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("选择产品")
-        self.setFixedSize(400, 150)
+        self.setFixedSize(400, 200)
         layout = QVBoxLayout()
+        # 新增运营商下拉框
+        self.operator_combo = QComboBox()
+        layout.addWidget(QLabel("请选择运营商："))
+        layout.addWidget(self.operator_combo)
+        # 产品下拉框
         self.combo = QComboBox()
-        self.products = []
-        self.selected_product = None
         layout.addWidget(QLabel("请选择产品："))
         layout.addWidget(self.combo)
         btn_layout = QHBoxLayout()
@@ -20,7 +23,11 @@ class ProductSelectDialog(QDialog):
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
         self.setLayout(layout)
+        self.products = []
+        self.filtered_products = []
+        self.selected_product = None
         self.load_products()
+        self.operator_combo.currentIndexChanged.connect(self.on_operator_changed)
         self.combo.currentIndexChanged.connect(self.on_select)
 
     def load_products(self):
@@ -56,12 +63,26 @@ class ProductSelectDialog(QDialog):
                 QMessageBox.warning(self, "提示", "未查到可选产品，请检查数据库配置和权限！")
                 return
             self.products = rows
-            for row in rows:
-                self.combo.addItem(f"{row['product_name']}（{row['operator_code']}）", row)
-            self.selected_product = rows[0]
+            # 提取所有运营商编码
+            operator_codes = sorted(set(row['operator_code'] for row in rows))
+            self.operator_combo.clear()
+            self.operator_combo.addItems(operator_codes)
+            # 默认选中第一个运营商，刷新产品列表
+            self.on_operator_changed()
         except Exception as e:
             QMessageBox.critical(self, "数据库错误", str(e))
 
+    def on_operator_changed(self):
+        code = self.operator_combo.currentText()
+        self.filtered_products = [row for row in self.products if row['operator_code'] == code]
+        self.combo.clear()
+        for row in self.filtered_products:
+            self.combo.addItem(f"{row['product_name']}（{row['operator_code']}）", row)
+        if self.filtered_products:
+            self.selected_product = self.filtered_products[0]
+        else:
+            self.selected_product = None
+
     def on_select(self, idx):
-        if 0 <= idx < len(self.products):
-            self.selected_product = self.products[idx] 
+        if 0 <= idx < len(self.filtered_products):
+            self.selected_product = self.filtered_products[idx] 

@@ -2,7 +2,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 class WorkerQThread(QThread):
     log_signal = pyqtSignal(str)
-    progress_signal = pyqtSignal(str)
+    progress_signal = pyqtSignal(int, str)
     finished_signal = pyqtSignal(object)
     def __init__(self, worker_func, *args, **kwargs):
         super().__init__()
