@@ -1,5 +1,7 @@
-from PyQt5.QtWidgets import QPushButton, QLabel, QProgressBar, QTextEdit, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QComboBox
+from PyQt5.QtWidgets import QPushButton, QLabel, QProgressBar, QTextEdit, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QComboBox, QGroupBox
+from PyQt5.QtCore import Qt
 from ui.utils.form_fields import FORM_FIELDS
+from ui.components.draggable_group_box import DraggableGroupBox
 
 def build_product_row(ui):
     ui.product_edit = QLineEdit()
@@ -61,6 +63,33 @@ def build_progress_row(ui):
     ui.progress_bar.setValue(0)
     return ui.progress_label, ui.progress_bar
 
+def build_four_elements_group(ui):
+    """构建四要素分组，支持拖拽"""
+    group_box = DraggableGroupBox("四要素信息 (支持拖拽文件自动填充)")
+    
+    # 创建四要素表单布局
+    form_layout = QFormLayout()
+    
+    # 四要素字段
+    four_elements_fields = [
+        ("姓名", "name", "", True),
+        ("身份证", "id_code", "", True),
+        ("手机号", "phone", "", True),
+        ("银行卡号", "bank_no", "", True),
+    ]
+    
+    for label, key, default, required in four_elements_fields:
+        edit = QLineEdit(default)
+        ui.inputs[key] = edit
+        form_layout.addRow(label, edit)
+    
+    group_box.setLayout(form_layout)
+    
+    # 将group_box设置为拖拽目标
+    ui.four_elements_group = group_box
+    
+    return group_box
+
 def build_log_row(ui):
     label = QLabel("详细日志：")
     ui.log_text = QTextEdit()
@@ -72,19 +101,22 @@ def build_full_ui(ui):
     layout = QVBoxLayout()
     form_layout = QFormLayout()
     # 统一声明和布局
-    for build_row in [
+    for idx, build_row in enumerate([
         build_product_row,
         build_plate_province_row,
         build_plate_letter_row,
         build_plate_number_row,
         build_plate_color_row,
         build_vin_row
-    ]:
+    ]):
         label, widget = build_row(ui)
         form_layout.addRow(label, widget)
-    # 其它字段
+        # 在VIN码后插入四要素分组
+        if build_row == build_vin_row:
+            form_layout.addRow(build_four_elements_group(ui))
+    # 其它字段（排除四要素字段）
     for label, key, default, _ in FORM_FIELDS:
-        if key in ['plate_province', 'plate_letter', 'plate_number', 'vin', 'product']:
+        if key in ['plate_province', 'plate_letter', 'plate_number', 'vin', 'product', 'name', 'id_code', 'phone', 'bank_no']:
             continue
         edit = QLineEdit(default)
         ui.inputs[key] = edit
