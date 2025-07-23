@@ -39,7 +39,7 @@ def start_etc_apply_flow(params, ui):
             "FmAdmin-Expires-In": "180",
             "Admin-Token": "eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6IjFkYmM1NDk0LWI4YWYtNGU2OC05ODk2LWJiMzllZDlhMWJlMCJ9.SDPVu-PA3odiIvCUNe-rKe6TH2KlXobquC4Br4gll7I_8dkVs83T5IJwK61yESOFLXd-Wwm_CsGgS_cNudbs9A"
         }
-        worker = Core(params=params, progress_callback=progress_callback, base_url="http://ectbao.imdo.co", browser_cookies=browser_cookies)
+        worker = Core(params=params, progress_callback=progress_callback, base_url="http://788360p9o5.yicp.fun", browser_cookies=browser_cookies)
         # 分步执行前6步
         worker.step1_check_car_num()
         worker.step2_check_is_not_car_num()
