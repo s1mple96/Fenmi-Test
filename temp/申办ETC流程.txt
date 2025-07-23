@@ -1,0 +1,343 @@
+1.省份这里，弄一个弹窗吧，将所有车牌号省份的涵盖，点击就弹出，尽量是长方形的
+2.车牌号、姓名、身份证、手机号、银行卡号后面都加个按钮可以随机重新生成
+3.下面加上log日志，每个步骤接口的详细日志。
+
+申办客车ETC流程
+接口顺序：
+1./rtx-app/apply/checkCarNum
+2./rtx-app/apply/order/checkIsNotCarNum
+3./rtx-app/apply/order/getChannelUseAddress
+4./rtx-app/service/optionalServiceList
+5./rtx-app/apply/submitCarNum
+6./rtx-app/protocol/add
+7./rtx-app/apply/submitIdentityWithBankSign
+8./rtx-app/withhold/signCheck
+9./rtx-app/apply/saveVehicleInfo
+10./rtx-app/service/optionalServiceUpdate
+{
+  "orderId": "1942425376227749890"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": null,
+  "success": true
+}
+11./rtx-app/withhold/old/pay
+{
+  "bankCardNo": "6222034000046037473",
+  "etcCardUserId": "1942425646995238914",
+  "productId": "1503564182627360770",
+  "applyOrderId": "1942425376227749890",
+  "verifyCode": "250708",
+  "phoneNumber": "15818376788"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "signOrderId": "1942426246151565313",
+    "paymentTime": null,
+    "payStatus": "SUCCESS",
+    "msg": "操作成功"
+  },
+  "success": true
+}
+11./rtx-app/apply/bindApplication
+申办江苏客车ETC涉及的表(表都在rtx下）
+rtx_user_protocol
+rtx_etc_card_user_extend
+rtx_etcapply_order
+rtx_equipment_member_order
+rtx_bank_sign_order
+rtx_etcapply_vehicle_info
+——
+接口请求参数和响应数据：
+1./rtx-app/apply/checkCarNum
+{
+  "carNum": "苏Z91820",
+  "vehicleColor": "0",
+  "truckchannelId": "0000"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "whetherImmediateApplication": "1"
+  },
+  "success": true
+}
+2./rtx-app/apply/order/checkIsNotCarNum
+{
+  "channelId": "0000",
+  "carNum": "苏Z91820"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": false,
+  "success": true
+}
+3./rtx-app/apply/order/getChannelUseAddress
+{
+  "channelId": "0000",
+  "province": "广东省",
+  "city": "深圳市"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": true,
+  "success": true
+}
+4./rtx-app/service/optionalServiceList
+{
+  "productId": "1503564182627360770",
+  "orderId": "",
+  "channelId": "0000"
+}
+{
+  "total": 3,
+  "rows": [
+    {
+      "createBy": "admin",
+      "createTime": "2023-03-01 15:39:54",
+      "updateBy": "admin",
+      "updateTime": "2024-01-03 15:41:18",
+      "remark": null,
+      "id": null,
+      "customizedId": "1630835234947731458",
+      "optionalName": "测试001",
+      "status": 1,
+      "price": 0.01,
+      "frequency": "1",
+      "optionalImgUrl": "https://huochebaoimg.oss-cn-shenzhen.aliyuncs.com/images/rtxfiles/2023/03/14/cfbc13bd858f47a7a6155b461b166739.png",
+      "productNotSupported": "1503564182627360770",
+      "guideCommemts": "宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点",
+      "businessType": "业务类型",
+      "renewalMethod": null,
+      "remarks": "备注说明、服务",
+      "channelSupported": "",
+      "canBuyDay": "20",
+      "channelSupportedNameList": null,
+      "selectFlag": null,
+      "obuNo": null,
+      "etcSn": null
+    },
+    {
+      "createBy": "admin",
+      "createTime": "2023-03-07 15:21:59",
+      "updateBy": "admin",
+      "updateTime": "2023-08-03 14:25:28",
+      "remark": null,
+      "id": null,
+      "customizedId": "1633005051855245314",
+      "optionalName": "都支持",
+      "status": 1,
+      "price": 0.02,
+      "frequency": "24",
+      "optionalImgUrl": "https://huochebaoimg.oss-cn-shenzhen.aliyuncs.com/images/rtxfiles/2023/03/07/40ab69e4c7f542eaacfa0a73faea0f07.jpg",
+      "productNotSupported": "",
+      "guideCommemts": "宣导亮点宣导1亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点宣导亮点",
+      "businessType": "业务类型业务类型",
+      "renewalMethod": null,
+      "remarks": "备注说明备注说明备注说明备注说明备注说明备注说明",
+      "channelSupported": "",
+      "canBuyDay": null,
+      "channelSupportedNameList": null,
+      "selectFlag": null,
+      "obuNo": null,
+      "etcSn": null
+    },
+    {
+      "createBy": "admin",
+      "createTime": "2023-05-24 17:36:31",
+      "updateBy": "admin",
+      "updateTime": "2023-08-22 10:14:31",
+      "remark": null,
+      "id": null,
+      "customizedId": "1661305161034915842",
+      "optionalName": "延保服务3",
+      "status": 1,
+      "price": 0.02,
+      "frequency": "60",
+      "optionalImgUrl": "https://huochebaoimg.oss-cn-shenzhen.aliyuncs.com/images/rtxfiles/2023/05/24/7854251ced6747d9944e551349bd2c75.png",
+      "productNotSupported": "",
+      "guideCommemts": "宣导两点2333221",
+      "businessType": "业务类型",
+      "renewalMethod": null,
+      "remarks": "备注备注",
+      "channelSupported": "",
+      "canBuyDay": null,
+      "channelSupportedNameList": null,
+      "selectFlag": null,
+      "obuNo": null,
+      "etcSn": null
+    }
+  ],
+  "code": 200,
+  "msg": "查询成功",
+  "dataMap": null
+}
+5./rtx-app/apply/submitCarNum
+{
+  "operatorCode": "TXB",
+  "truckchannelId": "0000",
+  "productId": "1503564182627360770",
+  "orderType": "0",
+  "handleLocation": "广东省,深圳市,龙岗区",
+  "carNum": "苏Z91820",
+  "vehicleColor": "0",
+  "terminalId": "",
+  "tempCarNumFlag": "0",
+  "bidOrderType": "1"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "orderId": "1942039823300919297"
+  },
+  "success": true
+}
+6./rtx-app/protocol/add
+{
+  "orderId": "1942039823300919297",
+  "protocolId": "1480429588403593218",
+  "signingImage": "https://img.jiaduobaoapp.com/images/files/2025/07/07/175185352707236.png",
+  "protocolType": 0
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": true,
+  "success": true
+}
+7./rtx-app/apply/submitIdentityWithBankSign
+{
+  "productId": "1503564182627360770",
+  "idCardUrl": "https://img.jiaduobaoapp.com/images/files/2025/07/07/175185335686382.jpg",
+  "backIdCardUrl": "https://img.jiaduobaoapp.com/images/files/2025/07/07/1751853438620143.jpg",
+  "cardHolder": "骆志敏",
+  "idCode": "441622199602075195",
+  "idcardValidity": "2016.10.25-2026.10.25",
+  "idAddress": "广东省龙川县龙母镇张乐村委会下乐汉村97号",
+  "urgentContact": "朱瑞燕",
+  "urgentPhone": "17734095436",
+  "bindBankUrl": "",
+  "bindBankName": "中国工商银行",
+  "bindBankNo": "6222034000046037473",
+  "bankCode": "ICBC",
+  "bindBankPhone": "15818376788",
+  "bankCardType": "01",
+  "bankChannelCode": "QUICK_COMBINED_PAY",
+  "code": "",
+  "bankCardInfoId": "1440968899762982912",
+  "isAgree": 1,
+  "orderId": "1942039823300919297"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "etccardUserId": "1942040675059204098",
+    "orderId": "1942039823300919297",
+    "signOrderId": "1942040674832711681",
+    "carNum": "苏Z91820",
+    "driverUserInfoId": "1906909894150443009",
+    "verifyCodeNo": "4075132865288014860_M0000202507074075132865287818285"
+  },
+  "success": true
+}
+8./rtx-app/withhold/signCheck
+{
+  "productId": "1503564182627360770",
+  "verifyCode": "184263",
+  "bankCardNo": "6222034000046037473",
+  "bindBankPhone": "15818376788",
+  "idCode": "441622199602075195",
+  "verifyCodeNo": "4075132865288014860_M0000202507074075132865287818285",
+  "signOrderId": "1942040674832711681",
+  "location": "2"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "signOrderId": "1942040674832711681",
+    "verifyCodeNo": "4075132865288014860_M0000202507074075132865287818285",
+    "orderId": null
+  },
+  "success": true
+}
+9./rtx-app/apply/saveVehicleInfo
+{
+  "productId": "1503564182627360770",
+  "licenseUrl": "https://img.jiaduobaoapp.com/images/files/2025/07/07/175185367647574.png",
+  "backLicenseUrl": "https://img.jiaduobaoapp.com/images/files/2025/07/07/175185368337190.jpg",
+  "carHeadUrl": "https://img.jiaduobaoapp.com/images/files/2025/07/07/175185369119853.png",
+  "plateNum": "苏Z91820",
+  "vehicleType": "小型轿车",
+  "model": "长安牌SC1031GDD53",
+  "vin": "WDDMH4DB4JJ476833",
+  "engineNum": "18505834",
+  "useCharacter": "非营运",
+  "owner": "王莉",
+  "registerDate": "20181029",
+  "issueDate": "20181029",
+  "vehicleColor": "0",
+  "approvedPassengerCapacity": 5,
+  "length": 4660,
+  "wide": 1775,
+  "high": 1500,
+  "grossMass": 2030,
+  "unladenMass": 1454,
+  "approvedLoad": "",
+  "licenseVerifyFlag": 0,
+  "updateCkg": "1",
+  "addr": "湖南省湘潭县易俗河镇湘江路居委会",
+  "orderId": "1942039823300919297"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "etccardUserId": "1942040675059204098",
+    "orderId": "1942039823300919297",
+    "carNum": "苏Z91820",
+    "driverUserInfoId": "1906909894150443009",
+    "handleOrderType": "0"
+  },
+  "success": true
+}
+10./rtx-app/withhold/applyWeixinRecharge
+{
+  "applyOrderId": "1942039823300919297",
+  "productId": "1503564182627360770",
+  "code": "0b3QAEkl2tDeTf4TLtml2DmGXJ1QAEkc"
+}
+{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "timeStamp": "1751853701",
+    "package": "prepay_id=wx07100141909581e1c650dc18e609070000",
+    "paySign": "TEHaPhysCln06MyMx3qCivIdDJZrTxdeWWiQZm73FpSFDXQ9xLVZ+tB1dTeXpCMtpXvWmAYs0BKxIuBGk9fkuoFexovSa2GI197DZ6kg/RcTTO7C2UoQkOO5Kp7IxmEqwI5+d/Pncvmmk6gRqJ+H60JWCP7tX+8QSvkn3dmZhZpwB+1SPCL0oa5/iXC3wkmYKKikT/yDWRPsMWhDwYDk54yfM6x+sXl5up9/Ygfd93G/GHQDaZShjrL5V4mhdW62cv4gp48eJt/8uW8a++xkR3hXEwEqWm1DwpBQhOWlf+vK1VdTDM51Vsis5W7Y3SNQokiljwP5BwDgGHy68Vox2w==",
+    "appId": "wx40eebeb528f34d91",
+    "signType": "RSA",
+    "nonceStr": "95032473cd884951ba01b41600049658"
+  },
+  "success": true
+}
+11./rtx-app/apply/bindApplication
+{
+  "orderId": "1942039823300919297",
+  "productId": "1503564182627360770",
+  "issueFalg": null
+}
+{
+  "code": 500,
+  "msg": null,
+  "data": null,
+  "success": false
+}

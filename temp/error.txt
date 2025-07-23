@@ -1,0 +1,248 @@
+
+
+public String verifyVehicleInfo(VehicleOcrDTO vehicle) {
+    String msg = "";
+    List<SysDictData> sysDictDataList = this.sysDictDataService.selectDictLabelByDictType("saveVehicleInfo");
+    if (CollectionUtils.isNotEmpty(sysDictDataList)) {
+      Map<String, SysDictData> sysDictDataMap = (Map<String, SysDictData>)sysDictDataList.stream().collect(Collectors.toMap(s -> s.getDictValue(), s -> s));
+      String plateNum = vehicle.getPlateNum();
+      SysDictData plateNumSysDictData = sysDictDataMap.get("plateNum");
+      if (StringUtils.isNotEmpty(plateNum) && Objects.nonNull(plateNumSysDictData) && "0".equals(plateNumSysDictData.getStatus())) {
+        String regular = plateNumSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, plateNum);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String vehicleType = vehicle.getVehicleType();
+      SysDictData vehicleTypeSysDictData = sysDictDataMap.get("vehicleType");
+      if (StringUtils.isNotEmpty(vehicleType) && Objects.nonNull(vehicleTypeSysDictData) && "0".equals(vehicleTypeSysDictData.getStatus())) {
+        String regular = vehicleTypeSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, vehicleType);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String owner = vehicle.getOwner();
+      SysDictData ownerSysDictData = sysDictDataMap.get("owner");
+      if (StringUtils.isNotEmpty(owner) && Objects.nonNull(ownerSysDictData) && "0".equals(ownerSysDictData.getStatus())) {
+        String regular = ownerSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, owner);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String addr = vehicle.getAddr();
+      SysDictData addrSysDictData = sysDictDataMap.get("addr");
+      if (StringUtils.isNotEmpty(addr) && Objects.nonNull(addrSysDictData) && "0".equals(addrSysDictData.getStatus())) {
+        String regular = addrSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, addr);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String useCharacter = vehicle.getUseCharacter();
+      SysDictData useCharacterSysDictData = sysDictDataMap.get("useCharacter");
+      if (StringUtils.isNotEmpty(useCharacter) && Objects.nonNull(useCharacterSysDictData) && "0".equals(useCharacterSysDictData.getStatus())) {
+        String regular = useCharacterSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, useCharacter);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String model = vehicle.getModel();
+      SysDictData modelSysDictData = sysDictDataMap.get("model");
+      if (StringUtils.isNotEmpty(model) && Objects.nonNull(modelSysDictData) && "0".equals(modelSysDictData.getStatus())) {
+        String regular = modelSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, model);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String engineNum = vehicle.getEngineNum();
+      SysDictData engineNumSysDictData = sysDictDataMap.get("engineNum");
+      if (StringUtils.isNotEmpty(engineNum) && Objects.nonNull(engineNumSysDictData) && "0".equals(engineNumSysDictData.getStatus())) {
+        String regular = engineNumSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, engineNum);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String registerDate = vehicle.getRegisterDate();
+      SysDictData registerDateSysDictData = sysDictDataMap.get("registerDate");
+      if (StringUtils.isNotEmpty(registerDate) && Objects.nonNull(registerDateSysDictData) && "0".equals(registerDateSysDictData.getStatus())) {
+        String regular = registerDateSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, registerDate);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String issueDate = vehicle.getIssueDate();
+      SysDictData issueDateSysDictData = sysDictDataMap.get("issueDate");
+      if (StringUtils.isNotEmpty(issueDate) && Objects.nonNull(issueDateSysDictData) && "0".equals(issueDateSysDictData.getStatus())) {
+        String regular = issueDateSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, issueDate);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String approvedPassengerCapacity = vehicle.getApprovedPassengerCapacity();
+      SysDictData approvedPassengerCapacitySysDictData = sysDictDataMap.get("approvedPassengerCapacity");
+      if (StringUtils.isNotEmpty(approvedPassengerCapacity) && Objects.nonNull(approvedPassengerCapacitySysDictData) && "0".equals(approvedPassengerCapacitySysDictData.getStatus())) {
+        String regular = approvedPassengerCapacitySysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, approvedPassengerCapacity);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String grossMass = vehicle.getGrossMass();
+      SysDictData grossMassSysDictData = sysDictDataMap.get("grossMass");
+      if (StringUtils.isNotEmpty(grossMass) && Objects.nonNull(grossMassSysDictData) && "0".equals(grossMassSysDictData.getStatus())) {
+        String regular = grossMassSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, grossMass);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String unladenMass = vehicle.getUnladenMass();
+      SysDictData unladenMassSysDictData = sysDictDataMap.get("unladenMass");
+      if (StringUtils.isNotEmpty(unladenMass) && Objects.nonNull(unladenMassSysDictData) && "0".equals(unladenMassSysDictData.getStatus())) {
+        String regular = unladenMassSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, unladenMass);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String approvedLoad = vehicle.getApprovedLoad();
+      SysDictData approvedLoadSysDictData = sysDictDataMap.get("approvedLoad");
+      if (StringUtils.isNotEmpty(approvedLoad) && Objects.nonNull(approvedLoadSysDictData) && "0".equals(approvedLoadSysDictData.getStatus())) {
+        String regular = approvedLoadSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, approvedLoad);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String tractionMass = vehicle.getTractionMass();
+      SysDictData tractionMassSysDictData = sysDictDataMap.get("tractionMass");
+      if (StringUtils.isNotEmpty(tractionMass) && Objects.nonNull(tractionMassSysDictData) && "0".equals(tractionMassSysDictData.getStatus())) {
+        String regular = tractionMassSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, tractionMass);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String length = vehicle.getLength();
+      SysDictData lengthSysDictData = sysDictDataMap.get("length");
+      if (StringUtils.isNotEmpty(length) && Objects.nonNull(lengthSysDictData) && "0".equals(lengthSysDictData.getStatus())) {
+        String regular = lengthSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, length);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String wide = vehicle.getWide();
+      SysDictData wideSysDictData = sysDictDataMap.get("wide");
+      if (StringUtils.isNotEmpty(wide) && Objects.nonNull(wideSysDictData) && "0".equals(wideSysDictData.getStatus())) {
+        String regular = wideSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, wide);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+      String high = vehicle.getHigh();
+      SysDictData highSysDictData = sysDictDataMap.get("high");
+      if (StringUtils.isNotEmpty(high) && Objects.nonNull(highSysDictData) && "0".equals(highSysDictData.getStatus())) {
+        String regular = highSysDictData.getRemark();
+        try {
+          boolean matches = Pattern.matches(regular, high);
+          if (!matches) {
+            msg = ";
+            return msg;
+          } 
+        } catch (Exception e) {
+          msg = ";
+        } 
+      } 
+    } 
+    return msg;
+  }

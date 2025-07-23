@@ -1,0 +1,44 @@
+[2025-07-04 11:24:39,978] [INFO] POST请求返回: 200, 内容: {
+  "args": {}, 
+  "data": "{\"key\": \"value\"}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+  
+[2025-07-04 11:24:52,081] [INFO] GET请求返回: 200, 内容: {
+  "args": {
+    "test": "value"
+  }, 
+  "headers": {
+    "Accept": "*/*", 
+    "Accept-Encoding": 
+[2025-07-04 11:24:52,959] [INFO] POST请求返回: 200, 内容: {
+  "args": {}, 
+  "data": "{\"key\": \"value\"}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+  
+[2025-07-04 11:24:53,855] [INFO] PUT请求返回: 200, 内容: {
+  "args": {}, 
+  "data": "{\"put\": \"yes\"}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    
+[2025-07-04 11:24:54,780] [INFO] DELETE请求返回: 200, 内容: {
+  "args": {}, 
+  "data": "", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "*/*", 
+
+[2025-07-04 11:24:55,690] [INFO] REQUEST方法返回: 200, 内容: {
+  "args": {
+    "foo": "bar"
+  }, 
+  "headers": {
+    "Accept": "*/*", 
+    "Accept-Encoding": "gz
+[2025-07-04 11:24:56,708] [INFO] 文件下载到: C:\Users\fenm\AppData\Local\Temp\pytest-of-fenm\pytest-0\test_download_file0\test.png, 文件大小: 8090

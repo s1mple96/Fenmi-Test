@@ -1,0 +1,145 @@
+[
+  {
+    "env": "测试",
+    "system": "任通行管理后台",
+    "url": "http://788360p9o5.yicp.fun/rtx-web/login?redirect=%2Findex",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "任货行管理后台",
+    "url": "http://788360p9o5.yicp.fun/hcbadmin/login_toLogin",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "新发行ETC系统",
+    "url": "https://788360p9o5.yicp.fun/etc-admin/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "渠道业务系统",
+    "url": "http://788360p9o5.yicp.fun/hcbcrm/",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "分米支付系统",
+    "url": "http://788360p9o5.yicp.fun/fm_admin/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "【任意行】后台地址",
+    "url": "http://788360p9o5.yicp.fun/ryx/",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "综合办公管理系统（财务系统）",
+    "url": "http://788360p9o5.yicp.fun/fm-financial-admin/",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "黑龙江一发管理后台",
+    "url": "https://ectbao.imdo.co/fis-admin/",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "黑龙江二发H5",
+    "url": "http://788360p9o5.yicp.fun/applyEtcLJH5/#/?channelId=1806263429235273730"
+  },
+  {
+    "env": "测试",
+    "system": "黑龙江二发后台",
+    "url": "http://788360p9o5.yicp.fun/lj-sec-admin",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "二发【工厂库存】后台地址",
+    "url": "http://788360p9o5.yicp.fun/fm-stock-admin/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "任我花后台",
+    "url": "http://788360p9o5.yicp.fun/loan_admin_v3/inLoan/tradeDetail",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "科芯官网后台",
+    "url": "http://788360p9o5.yicp.fun/kexin-admin/",
+    "username": "admin",
+    "password": "admin123"
+  },
+  {
+    "env": "测试",
+    "system": "黑龙江客服管理后台",
+    "url": "http://788360p9o5.yicp.fun/lj-csm-admin",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "【龙智支付】后台地址",
+    "url": "http://788360p9o5.yicp.fun/lj-pay-admin/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "催收业务系统",
+    "url": "https://788360p9o5.yicp.fun/collection-web/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "分米核心业务监控系统",
+    "url": "http://788360p9o5.yicp.fun/fm-business-monitoring/index",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "测试专用笔记本电脑",
+    "password": "111111"
+  },
+  {
+    "env": "测试",
+    "system": "渠道SaaS后台",
+    "url": "http://788360p9o5.yicp.fun/channel-admin/login",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "公共信息平台",
+    "url": "http://788360p9o5.yicp.fun/public-platform-admin/login",
+    "username": "admin",
+    "password": "mf888769*"
+  },
+  {
+    "env": "测试",
+    "system": "分米数科开放平台",
+    "url": "https://788360p9o5.yicp.fun/fm-open-platform/serviceSystem/voiceRobotDetail",
+    "username": "admin",
+    "password": "mf888769*"
+  }
+]

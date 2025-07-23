@@ -1,0 +1,96 @@
+
+  @RepeatSubmit
+  @PostMapping({"/applyWeixinRecharge"})
+  @ApiOperation(")
+  @AppLog
+  public AjaxResult<JSONObject> applyWeixinRecharge(@Validated @RequestBody WeixinRechargeDTO dto, HttpServletRequest request) {
+    RtxUtils.check((!"1".equals(dto.getH5PayFlag()) && StringUtils.isEmpty(dto.getCode())), ");
+    Product product = this.productService.selectProductById(dto.getProductId());
+    Assert.notNull(product, ");
+    Long orderId = dto.getApplyOrderId();
+    EtcApplyOrder order = this.etcApplyOrderService.selectEtcApplyOrderById(orderId);
+    Assert.notNull(order, ");
+    if (BidApplyOrderTypeEnum.DISPLACE_CARNUM_ORDER.getValue().equals(order.getBidOrderType()) || BidApplyOrderTypeEnum.DISPLACE_CAR_ORDER
+      .getValue().equals(order.getBidOrderType())) {
+      List<DisplaceApplyOrder> displaceOrders = this.iDisplaceApplyOrderService.list((Wrapper)((LambdaQueryWrapper)(new LambdaQueryWrapper())
+          .eq(DisplaceApplyOrder::getApplyOrderId, orderId))
+          .orderByDesc(DisplaceApplyOrder::getId, (Object[])new com.baomidou.mybatisplus.core.toolkit.support.SFunction[0]));
+      RtxUtils.checkBiz((CollectionUtil.isNotEmpty(displaceOrders) && DisplaceOrderStatusEnum.CANCEL
+          .getCode().equals(((DisplaceApplyOrder)displaceOrders.get(0)).getOrderStatus())), BizCodeEnum.RTX0000);
+    } 
+    if (EtcApplyOrderEnum.PayStatus.YI_ZHI_FU.getCode().equals(order.getPayStatus()) || EtcApplyOrderEnum.PayStatus.WAITING.getCode().equals(order.getPayStatus()))
+      return AjaxResult.fail("+ EtcApplyOrderEnum.PayStatus.byCode(order.getPayStatus())); 
+    LocalDateTime now = LocalDateTime.now();
+    int startOrderYears = TradeOrder.toIntOrderYears(now.plusMonths(-1L));
+    int endOrderYears = TradeOrder.toIntOrderYears(now);
+    TradeOrder tradeOrder = this.tradeOrderService.getTradeOrderBySourceId(Convert.toStr(orderId), Lists.newArrayList((Object[])new String[] { OrderStatusEnum.PAYING.name(), OrderStatusEnum.SUCCESS.name() }, ), Integer.valueOf(startOrderYears), Integer.valueOf(endOrderYears));
+    if (Objects.nonNull(tradeOrder))
+      return AjaxResult.fail("+ tradeOrder.getTradeOrderNo() + ",+ tradeOrder.getOrderStatus()); 
+    ProductPolicyInfo query = new ProductPolicyInfo();
+    query.setProductId(dto.getProductId());
+    List<ProductPolicyInfo> productPolicyInfoList = this.productPolicyInfoService.selectProductPolicyInfoList(query);
+    Assert.notEmpty(productPolicyInfoList, ");
+    ProductPolicyInfo productPolicyInfo = productPolicyInfoList.get(0);
+    ProductConfigAmountVO productConfigAmount = new ProductConfigAmountVO();
+    BeanUtils.copyProperties(productPolicyInfo, productConfigAmount);
+    this.userBindBankService.fullZeroAmount(productConfigAmount);
+    boolean isMember = "1".equals(product.getProductType());
+    BigDecimal withholdAmount = this.userBindBankService.getWithholdPayAmount(isMember, productConfigAmount, orderId, product);
+    String openId = dto.getOpenId();
+    if (StringUtils.isEmpty(openId) && !"1".equals(dto.getH5PayFlag())) {
+      Long driverUserId = SecurityUtils.getUserId();
+      driverUserId = (Objects.nonNull(driverUserId) && driverUserId.longValue() > 0L) ? driverUserId : null;
+      openId = this.commonService.getWxOpenId(dto.getCode(), driverUserId);
+    } 
+    Long etcUserId = Long.valueOf(0L);
+    Long userWalletId = Long.valueOf(0L);
+    String idCode = order.getCarNum();
+    if (!ApplyOrderTypeEnum.POST.getValue().equals(order.getOrderType())) {
+      etcUserId = order.getEtcCardUserId();
+      EtcCardUser user = this.etcCardUserService.selectEtcCardUserByEtcCardId(etcUserId);
+      userWalletId = user.getUserWalletId();
+      idCode = order.getIdCode();
+    } 
+    List<MergeOrderPayDTO> mergeOrderPayList = productConfigAmount.buildApplyWithholdMergeOrderPayList();
+    for (MergeOrderPayDTO orderPay : mergeOrderPayList) {
+      orderPay.setCarNum(order.getCarNum());
+      orderPay.setEtcCardUserId(etcUserId);
+      orderPay.setBizSourceId(order.getOrderId().toString());
+    } 
+    OrderMixedPayVO result = new OrderMixedPayVO();
+    if ("1".equals(dto.getH5PayFlag())) {
+      H5MergePayDTO param = new H5MergePayDTO();
+      param.setOrderAmount(withholdAmount);
+      param.setOrderBizType(OrderBizTypeEnum.APPLY_ORDER_PAY);
+      param.setUserWalletId(userWalletId);
+      param.setBizSourceId(order.getOrderId().toString());
+      param.setMergeOrderPays(mergeOrderPayList);
+      param.setOrderName(order.getCarNum() + "-" + OrderBizTypeEnum.APPLY_ORDER_PAY.getMsg());
+      param.setOrderIp(IpUtils.getIpAddr(request));
+      result = this.tradeOrderPayManager.h5MergePay(param);
+    } else {
+      MergeAppletPayDTO param = new MergeAppletPayDTO();
+      param.setOrderAmount(withholdAmount);
+      param.setOrderBizType(OrderBizTypeEnum.APPLY_ORDER_PAY);
+      param.setUserWalletId(userWalletId);
+      param.setBizSourceId(order.getOrderId().toString());
+      param.setMergeOrderPays(mergeOrderPayList);
+      param.setOrderName(order.getCarNum() + "-" + OrderBizTypeEnum.APPLY_ORDER_PAY.getMsg());
+      param.setOrderIp(IpUtils.getIpAddr(request));
+      param.setOpenId(openId);
+      result = this.tradeOrderPayManager.appletMergePay(param);
+    } 
+    CnpPayResult cnpPayResult = result.getResult();
+    Assert.state(BankLinkNetWorkStatusEnum.SUCCESS.equals(cnpPayResult.getBankLinkNetWorkStatusEnum()), cnpPayResult.getBankReturnMsg());
+    EtcApplyOrder updateOrder = new EtcApplyOrder();
+    updateOrder.setOrderId(orderId);
+    updateOrder.setPayWay(PayWayEnum.FEN_MI.getCode());
+    this.etcApplyOrderService.updateEtcApplyOrder(updateOrder, ");
+    if ("1".equals(dto.getH5PayFlag())) {
+      JSONObject jsonObject = new JSONObject();
+      jsonObject.put("url", cnpPayResult.getPayMessage());
+      return AjaxResult.success(jsonObject);
+    } 
+    return AjaxResult.success(JSONObject.parseObject(cnpPayResult.getPayMessage()));
+  }
+  

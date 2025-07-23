@@ -1,0 +1,29 @@
+[
+  {
+    "env": "测试",
+    "type": "mysql",
+    "address": "192.168.1.60:3306",
+    "username": "root",
+    "password": "fm123456"
+  },
+  {
+    "env": "测试",
+    "type": "mongodb",
+    "address": "192.168.1.60:27017",
+    "username": "",
+    "password": ""
+  },
+  {
+    "env": "测试",
+    "type": "linux",
+    "address": "192.168.1.60",
+    "username": "root",
+    "password": "fenmi123"
+  },
+  {
+    "env": "测试",
+    "type": "redis",
+    "address": "192.168.1.60:6379",
+    "password": "chefu666"
+  }
+]

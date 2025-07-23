@@ -1,0 +1,284 @@
+@PostMapping({"/submitIdentityWithBankSign"})
+  @ApiOperation(value = ", httpMethod = "POST")
+  @RepeatSubmit
+  @AppLog
+  public AjaxResult<Map<String, Object>> submitIdentityWithBankSign(@Validated @RequestBody IdentityInfoWithBankSignDTO infoDto) {
+    String idCode = StringUtil.trim(infoDto.getIdCode());
+    List<String> idCodeList = Arrays.asList(new String[] { "81", "82", "71" });
+    if (!StringUtil.hasText(idCode) || idCode.length() != 18)
+      return AjaxResult.fail("); 
+    idCode = idCode.substring(0, 2);
+    if (!"1".equals(infoDto.getIsAgree()))
+      return AjaxResult.fail("); 
+    if (infoDto.getBindBankPhone().equals(infoDto.getUrgentPhone()))
+      return AjaxResult.fail("); 
+    EtcApplyOrder dto = this.etcApplyOrderService.selectEtcApplyOrderById(infoDto.getOrderId());
+    if (Objects.isNull(dto))
+      return AjaxResult.fail("); 
+    List<String> success = Arrays.asList(new String[] { ApplyOrderStatusEnum.TOBE_ACTIVE.getCode(), ApplyOrderStatusEnum.WAITING_ISSUE
+          .getCode(), ApplyOrderStatusEnum.ISSUED
+          .getCode(), ApplyOrderStatusEnum.DISTRIBUTION
+          .getCode(), ApplyOrderStatusEnum.COMPLETED
+          .getCode() });
+    RtxUtils.check(success.contains(dto.getOrderStatus()), ");
+    if (BidApplyOrderTypeEnum.TEMP_ORDER.getValue().equals(dto.getBidOrderType()))
+      if (ApplyOrderStatusEnum.PAY_YET.getCode().equals(dto.getOrderStatus()) && 
+        StringUtils.isNotBlank(dto.getIdCode()) && !dto.getIdCode().equals(idCode))
+        return AjaxResult.fail(");  
+    Product product = this.productService.selectProductById(dto.getProductId());
+    if (product == null)
+      return AjaxResult.fail("); 
+    ProductPolicyInfo query = new ProductPolicyInfo();
+    query.setProductId(dto.getProductId());
+    List<ProductPolicyInfo> productPolicyInfoList = this.productPolicyInfoService.selectProductPolicyInfoList(query);
+    if (CollectionUtils.isEmpty(productPolicyInfoList))
+      return AjaxResult.fail("); 
+    RtxUtils.check(this.etcCardUserService.validCarNumBy(infoDto.getIdCode()), " );
+    if (null != product.getEtcBankId()) {
+      EtcBank etcBank = (EtcBank)this.etcBankService.getById(product.getEtcBankId());
+      if (!"ALL".equals(etcBank.getBankCode()) && !StrUtil.equals(etcBank.getBankCode(), infoDto.getBankCode()))
+        return AjaxResult.fail(StrUtil.format("{}], new Object[] { etcBank.getName() })); 
+    } 
+    boolean existOrder = hasExistApplyOrder(dto.getCarNum(), dto.getVehicleColor(), dto.getOperatorCode(), dto.getOrderId());
+    if (existOrder)
+      return AjaxResult.fail("); 
+    String bankCardNo = infoDto.getBindBankNo();
+    String bankCode = infoDto.getBankCode();
+    String withholdIdCode = infoDto.getIdCode();
+    String phoneNumber = infoDto.getBindBankPhone();
+    String bankName = infoDto.getBindBankName();
+    String bankCardType = infoDto.getBankCardType();
+    String holderName = infoDto.getCardHolder();
+    String bankChannelCode = infoDto.getBankChannelCode();
+    if (StringUtils.isEmpty(infoDto.getIdCode()))
+      return AjaxResult.fail("); 
+    EtcApplyOrder update_dto = new EtcApplyOrder();
+    BeanUtils.copyProperties(infoDto, update_dto);
+    update_dto.setPhone(infoDto.getBindBankPhone());
+    update_dto.setBankNo(bankCode);
+    this.etcApplyOrderService.updateEtcApplyOrder(update_dto, ");
+    if (OperatorCodeEnum.MTK.getCode().equals(dto.getOperatorCode())) {
+      if (StringUtils.isBlank(dto.getSubmitStep()))
+        this.inmEtcApplyService.accountOpeningAndVehicleCertification(update_dto.getOrderId(), false); 
+    } else if (OperatorCodeEnum.LTK.getCode().equals(dto.getOperatorCode())) {
+      if (StringUtils.isBlank(dto.getSubmitStep()))
+        this.iltkEtcApplyService.accountOpeningAndVehicleCertification(update_dto.getOrderId(), false); 
+    } else if (OperatorCodeEnum.XTK.getCode().equals(dto.getOperatorCode()) && 
+      StringUtils.isBlank(dto.getSubmitStep())) {
+      this.ixtkEtcApplyService.accountOpeningAndVehicleCertification(update_dto.getOrderId(), false);
+    } 
+    BankSignOrder signOrder = getBankSignOrder(bankCardNo, Lists.newArrayList((Object[])new String[] { TradeStatusEnum.WAITING.name() }));
+    Assert.isNull(signOrder, ");
+    ApplyWithholdSignSendSmsDTO applyWithholdSignSendSms = new ApplyWithholdSignSendSmsDTO();
+    applyWithholdSignSendSms.setHolderIdCode(withholdIdCode);
+    applyWithholdSignSendSms.setHolderName(holderName);
+    applyWithholdSignSendSms.setHolderPhoneNumber(phoneNumber);
+    applyWithholdSignSendSms.setBankCardNo(bankCardNo);
+    applyWithholdSignSendSms.setBankCardInfoId(infoDto.getBankCardInfoId());
+    applyWithholdSignSendSms.setApplyOrderId(infoDto.getOrderId());
+    applyWithholdSignSendSms.setEtcCardUserId(Long.valueOf(0L));
+    applyWithholdSignSendSms.setUserWalletId(Long.valueOf(0L));
+    applyWithholdSignSendSms.setCardExpiredDate(infoDto.getCardExpiredDate());
+    applyWithholdSignSendSms.setCardCvv2(infoDto.getCardCvv2());
+    ApplyWithholdSignSendSmsVO sendSmsVO = this.userQuickBizService.applySignSendSms(applyWithholdSignSendSms);
+    UserWallet select_dto = new UserWallet();
+    select_dto.setIdCode(infoDto.getIdCode());
+    List<UserWallet> list = this.userWalletService.selectUserWalletList(select_dto);
+    Long walletId = Long.valueOf(0L);
+    if (list != null && list.size() > 0) {
+      String phone = infoDto.getBindBankPhone();
+      walletId = ((UserWallet)list.get(0)).getUserWalletId();
+      UserWallet userWallet = new UserWallet();
+      userWallet.setUserWalletId(walletId);
+      userWallet.setCardNo(infoDto.getBindBankNo());
+      userWallet.setBankNo(infoDto.getBankCode());
+      userWallet.setPhone(phone);
+      userWallet.setBankName(infoDto.getBindBankName());
+      userWallet.setName(infoDto.getCardHolder());
+      this.userWalletService.updateUserWallet(userWallet, ");
+    } else {
+      UserWallet userWallet = new UserWallet();
+      userWallet.setIdCode(infoDto.getIdCode());
+      userWallet.setName(infoDto.getCardHolder());
+      userWallet.setCardNo(infoDto.getBindBankNo());
+      userWallet.setBankNo(infoDto.getBankCode());
+      userWallet.setBankName(infoDto.getBindBankName());
+      userWallet.setPhone(infoDto.getBindBankPhone());
+      userWallet.setBankUrl(infoDto.getBindBankUrl());
+      userWallet.setBalance(BigDecimal.ZERO);
+      userWallet.setRongbangStatus("0");
+      userWallet.setFreezeAmount(BigDecimal.ZERO);
+      userWallet.setTobeFreezeAmt(BigDecimal.ZERO);
+      if (this.userWalletService.isUserWalletMode2(dto.getTruckchannelId(), String.valueOf(dto.getProductId()))) {
+        userWallet.setWalletMode(WalletModeEnum.MODE2.getValue());
+        userWallet.setWalletDeduction(WalletDeductionEnum.WITHHOLD.getValue());
+        userWallet.setAutoRecharge("0");
+      } 
+      this.userWalletService.insertUserWallet(userWallet);
+      walletId = userWallet.getUserWalletId();
+    } 
+    BeanUtils.copyProperties(infoDto, dto);
+    Long walletIdTemp = walletId;
+    String openAccountKey = "open_bank_account_status";
+    String configValue = this.sysConfigService.selectConfigByKey(openAccountKey);
+    if (StringUtils.equals(configValue, "1"))
+      this.threadPoolTaskExecutor.execute(() -> {
+            String openAccountChannel = this.sysConfigService.selectConfigByKey("open_account_channel");
+            EtcApplyOrder order = this.etcApplyOrderService.selectEtcApplyOrderById(infoDto.getOrderId());
+            OpenGZICBCAccountDTO openAccountDto = new OpenGZICBCAccountDTO();
+            openAccountDto.setUserWalletId(walletIdTemp);
+            openAccountDto.setAccountBankName(infoDto.getBindBankName());
+            openAccountDto.setIdCode(infoDto.getIdCode());
+            openAccountDto.setBankAccountName(infoDto.getCardHolder());
+            openAccountDto.setAccountBankCardNo(infoDto.getBindBankNo());
+            openAccountDto.setAccountBankCode(infoDto.getBankCode());
+            openAccountDto.setPhoneNumber(infoDto.getBindBankPhone());
+            openAccountDto.setIdCardValidity(order.getIdcardValidity());
+            openAccountDto.setCarNum(order.getCarNum());
+            openAccountDto.setIdCardUrl(order.getIdCardUrl());
+            openAccountDto.setIdCardBackUrl(order.getBackIdCardUrl());
+            openAccountDto.setBankCardUrl(order.getBindBankUrl());
+            this.oPenBankAccountService.openAccount(openAccountDto, StrUtil.equals(openAccountChannel, "2") ? BankAccountCodeEnum.RONG_BANG_ACCOUNT : BankAccountCodeEnum.GZ_ICBC_ACCOUNT, TriggerTypeEnum.APPLY.getValue());
+          }); 
+    TruckChannel channel = this.truckChannelService.selectTruckChannelById(dto.getTruckchannelId());
+    if (channel != null) {
+      ChannelCompanyProfit channelCompanyProfit = new ChannelCompanyProfit();
+      channelCompanyProfit.setProductId(dto.getProductId());
+      channelCompanyProfit.setChannelcompanyId(channel.getChannelcompanyId());
+      List<ChannelCompanyProfit> profits = this.channelCompanyProfitService.selectChannelCompanyProfitList(channelCompanyProfit);
+      if (CollectionUtils.isNotEmpty(profits)) {
+        ChannelCompanyProfit profit = profits.get(0);
+        EtcApplyOrder upDto = new EtcApplyOrder();
+        upDto.setOrderId(dto.getOrderId());
+        upDto.setBaseProfit((profit.getBaseProfit() == null) ? "0" : profit.getBaseProfit().toString());
+        this.etcApplyOrderService.updateEtcApplyOrder(upDto, ");
+      } 
+    } 
+    Map<String, Object> result = new HashMap<>();
+    DriverUserInfo userInfo = new DriverUserInfo();
+    userInfo.setPhone(infoDto.getBindBankPhone());
+    List<DriverUserInfo> userInfolist = this.driverUserInfoService.selectDriverUserInfoList(userInfo);
+    userInfo.setUserName(infoDto.getCardHolder());
+    if (userInfolist != null && userInfolist.size() > 0) {
+      userInfo.setId(((DriverUserInfo)userInfolist.get(0)).getId());
+      this.driverUserInfoService.updateDriverUserInfo(userInfo);
+    } else {
+      userInfo.setUpdateBy(infoDto.getCardHolder());
+      userInfo.setCreateBy(infoDto.getCardHolder());
+      userInfo.setStatus(UserStatus.OK.getCode());
+      userInfo.setNickName(infoDto.getCardHolder());
+      this.driverUserInfoService.insertDriverUserInfo(userInfo);
+    } 
+    result.put("driverUserInfoId", StringUtil.trim(userInfo.getId()));
+    result.put("carNum", StringUtil.trim(dto.getCarNum()));
+    EtcCardUser etccardUser = new EtcCardUser();
+    etccardUser.setIdCode(infoDto.getIdCode());
+    etccardUser.setCarNum(dto.getCarNum());
+    etccardUser.setOperatorCode(dto.getOperatorCode());
+    etccardUser.setVehicleColor(String.valueOf(dto.getVehicleColor()));
+    List<EtcCardUser> etccardUserList = this.etcCardUserService.selectEtccardUserList(etccardUser);
+    etccardUser.setDriverUserId(userInfo.getId());
+    etccardUser.setName(infoDto.getCardHolder());
+    etccardUser.setPhone(infoDto.getBindBankPhone());
+    etccardUser.setCardHolder(infoDto.getCardHolder());
+    etccardUser.setIdAddress(infoDto.getIdAddress());
+    etccardUser.setIdcardUrl(infoDto.getIdCardUrl());
+    etccardUser.setBackIdcardUrl(infoDto.getBackIdCardUrl());
+    etccardUser.setChannelId(dto.getTruckchannelId());
+    etccardUser.setVehicleColor(StringUtil.trim(dto.getVehicleColor()));
+    etccardUser.setProductId(dto.getProductId());
+    etccardUser.setOperatorCode(dto.getOperatorCode());
+    etccardUser.setUserWalletId(walletId);
+    if (etccardUserList != null && etccardUserList.size() > 0) {
+      etccardUser.setId(((EtcCardUser)etccardUserList.get(0)).getId());
+      this.etcCardUserService.updateEtccardUser(etccardUser, ");
+    } else {
+      this.etcCardUserService.insertEtcCardUser(etccardUser);
+    } 
+    UserProtocol protocol = new UserProtocol();
+    protocol.setOrderId(dto.getOrderId());
+    List<UserProtocol> protocolList = this.userProtocolService.selectUserProtocolList(protocol);
+    for (UserProtocol p : protocolList) {
+      p.setEtcCardUserId(etccardUser.getId());
+      p.setCarNum(etccardUser.getCarNum());
+      p.setPhone(etccardUser.getPhone());
+      p.setVehicleColor(etccardUser.getVehicleColor());
+      p.setName(etccardUser.getName());
+      this.logger.error("submitIdentityWithBankSign getUrl UserProtocol" + JSON.toJSONString(p));
+      if (StringUtils.isNotEmpty(p.getSigningImage())) {
+        Map<String, String> paramMap = new HashMap<>();
+        paramMap.put("fill_2", etccardUser.getIdCode());
+        String idAddress = etccardUser.getIdAddress();
+        if (StringUtils.isNotEmpty(idAddress))
+          if (idAddress.length() > 28) {
+            paramMap.put("fill_3", idAddress.substring(0, 28));
+            paramMap.put("fill_4", idAddress.substring(28, idAddress.length()));
+          } else {
+            paramMap.put("fill_3", idAddress);
+          }  
+        this.logger.error("submitIdentityWithBankSign getUrl signingImage" + p.getSigningImage());
+        this.logger.error("submitIdentityWithBankSign getUrl orderId" + p.getOrderId());
+        this.logger.error("submitIdentityWithBankSign getUrl paramMap" + JSON.toJSONString(paramMap));
+        String url = getUrl(p.getSigningImage(), p.getOrderId(), paramMap);
+        this.logger.error("submitIdentityWithBankSign getUrl url:::::::::::::::::" + url);
+        p.setSigningUrl(url);
+      } 
+      this.userProtocolService.updateUserProtocol(p);
+    } 
+    result.put("etccardUserId", StringUtil.trim(etccardUser.getId()));
+    EtcApplyOrder order_update = new EtcApplyOrder();
+    order_update.setEtcCardUserId(etccardUser.getId());
+    order_update.setOrderId(dto.getOrderId());
+    this.etcApplyOrderService.updateEtcApplyOrder(order_update, ");
+    ProductPolicyInfo productPolicyInfo = productPolicyInfoList.get(0);
+    this.userProductPolicyService.initUserProductPolicy(productPolicyInfo, etccardUser.getId());
+    BankSignOrder bankSignOrder = new BankSignOrder();
+    bankSignOrder.setId(sendSmsVO.getSignApplyId());
+    bankSignOrder.setUserWalletId(walletId);
+    bankSignOrder.setIdCode(infoDto.getIdCode());
+    bankSignOrder.setEtcCardUserId(etccardUser.getId());
+    bankSignOrder.setCarNumber(dto.getCarNum());
+    this.bankSignOrderService.updateBankSignOrder(bankSignOrder);
+    try {
+      ShoppingUserInfoVO shoppingUserInfoVO = this.shoppingUserInfoService.selectShoppingUserInfoByPhone(infoDto.getBindBankPhone());
+      if (shoppingUserInfoVO == null) {
+        ShoppingUserInfo shoppingUserInfo = new ShoppingUserInfo();
+        shoppingUserInfo.setPhone(userInfo.getPhone());
+        shoppingUserInfo.setDriverUserId(userInfo.getId());
+        shoppingUserInfo.setNickName(userInfo.getNickName());
+        String operatorCode = etccardUser.getOperatorCode();
+        if (StringUtils.equals(operatorCode, OperatorCodeEnum.JTK.getCode())) {
+          shoppingUserInfo.setAffiliationShopping("2");
+        } else if (StringUtils.equals(operatorCode, OperatorCodeEnum.TXB.getCode())) {
+          shoppingUserInfo.setAffiliationShopping("3");
+        } else if (StringUtils.equals(operatorCode, OperatorCodeEnum.LTK.getCode())) {
+          shoppingUserInfo.setAffiliationShopping("4");
+        } else if (StringUtils.equals(operatorCode, OperatorCodeEnum.XTK.getCode())) {
+          shoppingUserInfo.setAffiliationShopping("8");
+        } else if (StringUtils.equals(operatorCode, OperatorCodeEnum.MTK.getCode())) {
+          shoppingUserInfo.setAffiliationShopping("7");
+        } 
+        shoppingUserInfo.setLeaveCouponGroup(Long.valueOf(1L));
+        shoppingUserInfo.setUsedCouponGroup(Long.valueOf(0L));
+        shoppingUserInfo.setTwentyLeaveCouponSheet(Long.valueOf(0L));
+        shoppingUserInfo.setTwentyUsedCouponSheet(Long.valueOf(0L));
+        shoppingUserInfo.setTenLeaveCouponSheet(Long.valueOf(5L));
+        shoppingUserInfo.setTenUsedCouponSheet(Long.valueOf(0L));
+        shoppingUserInfo.setCreateBy(SecurityUtils.getUsername());
+        shoppingUserInfo.setUpdateBy(SecurityUtils.getUsername());
+        this.shoppingUserInfoService.save(shoppingUserInfo);
+      } else {
+        ShoppingUserInfo shoppingUserInfo = new ShoppingUserInfo();
+        shoppingUserInfo.setId(shoppingUserInfoVO.getId());
+        shoppingUserInfo.setLeaveCouponGroup(Long.valueOf(shoppingUserInfoVO.getLeaveCouponGroup().longValue() + 1L));
+        shoppingUserInfo.setTenLeaveCouponSheet(Long.valueOf(shoppingUserInfoVO.getTenCouponLeaveNum().longValue() + 5L));
+        this.shoppingUserInfoService.updateShoppingUserInfo(shoppingUserInfo);
+      } 
+    } catch (Exception e) {
+      log.error("+ e.getMessage(), e);
+    } 
+    result.put("verifyCodeNo", StringUtil.trim(sendSmsVO.getVerifyCodeNo()));
+    result.put("signOrderId", StringUtil.trim(bankSignOrder.getId()));
+    result.put("orderId", StringUtil.trim(update_dto.getOrderId()));
+    return AjaxResult.success(result);
+  }
