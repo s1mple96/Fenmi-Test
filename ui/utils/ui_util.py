@@ -169,6 +169,13 @@ def handle_select_product(ui):
     if dlg.exec_() == dlg.Accepted and dlg.selected_product:
         ui.product_edit.setText(dlg.selected_product.get('product_name', ''))
         ui.selected_product = dlg.selected_product
+        # 添加调试信息，确保产品ID正确
+        product_id = dlg.selected_product.get('product_id')
+        product_name = dlg.selected_product.get('product_name')
+        operator_code = dlg.selected_product.get('operator_code')
+        print(f"选择产品: {product_name} (ID: {product_id}, 运营商: {operator_code})")
+        if hasattr(ui, 'log_text'):
+            ui.log_text.append(f"已选择产品: {product_name} (ID: {product_id}, 运营商: {operator_code})")
 
 def handle_apply(ui):
     params = {k: w.text().strip() for k, w in ui.inputs.items()}
@@ -183,9 +190,18 @@ def handle_apply(ui):
     params['vin'] = params.get('vin', '')
     if hasattr(ui, 'selected_product') and ui.selected_product:
         params['productId'] = ui.selected_product.get('product_id')
+        # 添加验证信息
+        product_name = ui.selected_product.get('product_name', '')
+        operator_code = ui.selected_product.get('operator_code', '')
+        print(f"申办使用产品: {product_name} (ID: {params['productId']}, 运营商: {operator_code})")
+        if hasattr(ui, 'log_text'):
+            ui.log_text.append(f"申办使用产品: {product_name} (ID: {params['productId']}, 运营商: {operator_code})")
     else:
         # 如果没有选择产品，使用默认值
         params['productId'] = 1503564182627360770
+        print(f"未选择产品，使用默认产品ID: {params['productId']}")
+        if hasattr(ui, 'log_text'):
+            ui.log_text.append(f"未选择产品，使用默认产品ID: {params['productId']}")
     # 自动补全所有业务必需但UI没有的字段
     params['truckchannelId'] = params.get('truckchannelId', '0000')
     params['channelId'] = params.get('channelId', '0000')

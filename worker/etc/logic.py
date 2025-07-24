@@ -96,7 +96,17 @@ def show_verify_dialog(ui):
         ui.worker_thread_list.append(ui.worker_thread)
         ui.worker_thread.log_signal.connect(ui.log_signal.emit)
         ui.worker_thread.progress_signal.connect(ui.progress_signal.emit)
-        ui.worker_thread.finished_signal.connect(lambda _: handle_result("申办流程全部完成！", ui))
+        def on_flow_finished(result):
+            if result is None:
+                # 流程异常，也要关闭Mock数据
+                from worker.etc.result_handler import close_mock_data
+                close_mock_data()
+                handle_result("申办流程异常，已关闭Mock数据", ui)
+            else:
+                # 流程正常完成
+                handle_result("申办流程全部完成！", ui)
+        
+        ui.worker_thread.finished_signal.connect(on_flow_finished)
         ui.worker_thread.start()
     from ui.components.verify_code_dialog import VerifyCodeDialog
     dialog = VerifyCodeDialog(ui, on_get_code=on_get_code, on_confirm=on_confirm)
