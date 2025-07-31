@@ -1,15 +1,24 @@
 import requests
-import time
 import json
-import base64
-import urllib.parse
+import os
 from datetime import datetime
 
 
 #批量退款脚本
 
+def get_api_base_url():
+    """从配置文件读取API基础URL"""
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'app_config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config.get('api', {}).get('base_url', 'http://788360p9o5.yicp.fun')
+    except Exception as e:
+        print(f"读取配置文件失败: {e}")
+        return 'http://788360p9o5.yicp.fun'  # 默认值
+
 # 配置信息
-BASE_URL = 'http://788360p9o5.yicp.fun'
+BASE_URL = get_api_base_url()
 CAPTCHA_URL = f'{BASE_URL}/fenmi/code'
 LOGIN_URL = f'{BASE_URL}/fenmi/auth/login'
 GOODS_NAME = ''  # 添加商品名称配置
@@ -28,8 +37,8 @@ base_headers = {
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
     'Connection': 'keep-alive',
-    'Referer': 'http://788360p9o5.yicp.fun/fm_admin/login?redirect=%2FtransactionBill%2FpaymentOrder',
-    'Origin': 'http://788360p9o5.yicp.fun',
+    'Referer': f'{BASE_URL}/fm_admin/login?redirect=%2FtransactionBill%2FpaymentOrder',
+    'Origin': f'{BASE_URL}',
     'dmType': 'admin',
     'isToken': 'false'
 }
@@ -138,8 +147,8 @@ def process_refund(order):
     refund_headers = headers.copy()
     refund_headers.update({
         'Content-Type': 'application/json;charset=UTF-8',
-        'Origin': 'http://788360p9o5.yicp.fun',
-        'Referer': 'http://788360p9o5.yicp.fun/fm_admin/transactionBill/paymentOrder'
+        'Origin': f'{BASE_URL}',
+        'Referer': f'{BASE_URL}/fm_admin/transactionBill/paymentOrder'
     })
     
     print(f"退款请求URL: {url}")

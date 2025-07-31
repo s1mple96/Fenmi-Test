@@ -24,8 +24,19 @@ CLEANUP_CONFIG = {
     'delete_bill_files': False  # 是否删除生成的账单文件
 }
 
+def get_api_base_url():
+    """从配置文件读取API基础URL"""
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'app_config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config.get('api', {}).get('base_url', 'http://788360p9o5.yicp.fun')
+    except Exception as e:
+        print(f"读取配置文件失败: {e}")
+        return 'http://788360p9o5.yicp.fun'  # 默认值
+
 # API配置
-API_BASE_URL = 'http://788360p9o5.yicp.fun'
+API_BASE_URL = get_api_base_url()
 API_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
     'Accept': 'application/json, text/plain, */*',
