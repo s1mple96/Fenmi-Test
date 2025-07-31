@@ -12,7 +12,7 @@ from common.vin_util import get_next_vin
 from common.config_util import save_four_elements, FOUR_ELEMENTS_KEYS
 from apps.etc_apply.ui.ui_component import ProvinceDialog, ProductSelectDialog, PlateLetterDialog
 from apps.etc_apply.ui.ui_utils import ui_parser
-from apps.etc_apply.services.config_service import ConfigService
+from apps.etc_apply.services.core_service import CoreService
 from apps.etc_apply.services.log_service import LogService
 from apps.etc_apply.ui.ui_core import ui_core
 
@@ -158,10 +158,10 @@ class UIEventManager:
             # 设置处理中状态
             ui_core.set_processing_state(ui)
             
-            from apps.etc_apply.services.param_service import build_apply_params_from_ui
+            from apps.etc_apply.services.data_service import DataService
             from apps.etc_apply.services.etc_service import start_etc_apply_flow
             
-            params = build_apply_params_from_ui(ui)
+            params = DataService.build_apply_params_from_ui(ui)
             self.log_service.info("开始ETC申办流程")
             start_etc_apply_flow(params, ui)
             
@@ -181,8 +181,7 @@ class UIEventManager:
                 return
             
             # 验证文件扩展名
-            allowed_extensions = ['.txt', '.csv', '.json']
-            if not ui_core.validate_file_extension(file_path, allowed_extensions):
+            if not ui_core.validate_file_extension(file_path):
                 print("文件扩展名验证失败")
                 ui_core.show_validation_error(ui, "文件格式错误", "只支持TXT、CSV、JSON格式的文件！")
                 return

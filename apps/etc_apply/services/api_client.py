@@ -3,7 +3,7 @@ import logging
 import sys
 import traceback
 from apps.etc_apply.services.log_service import LogService
-from apps.etc_apply.services.error_service import ErrorService
+from apps.etc_apply.services.core_service import CoreService
 
 
 class ApiClient:
@@ -51,9 +51,9 @@ class ApiClient:
         except Exception as e:
             # 区分网络错误和API错误
             if "Connection refused" in str(e) or "timeout" in str(e).lower():
-                error_msg = ErrorService.format_network_error(path, e)
+                error_msg = CoreService.format_network_error(path, e)
             else:
-                error_msg = ErrorService.handle_api_exception(path, url, data, e)
+                error_msg = CoreService.handle_exception_with_context(path, e)
             self.log_service.log_api_error(path, data, e)
             raise Exception(error_msg)
 

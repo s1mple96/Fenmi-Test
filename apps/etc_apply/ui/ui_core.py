@@ -7,8 +7,8 @@ import os
 import re
 from typing import Dict, Any, List, Tuple, Optional
 from enum import Enum
-from PyQt5.QtWidgets import QWidget, QPushButton, QLineEdit, QComboBox, QProgressBar, QTextEdit, QMessageBox
-from apps.etc_apply.services.config_service import ConfigService
+from PyQt5.QtWidgets import QWidget, QPushButton, QLineEdit, QComboBox, QMessageBox
+from apps.etc_apply.services.core_service import CoreService
 from apps.etc_apply.services.log_service import LogService
 
 
@@ -31,12 +31,19 @@ class UICoreManager:
         self._ui_states = {}
         self._component_states = {}
         
+        # 从配置文件加载UI配置
+        self._load_ui_config()
+    
+    def _load_ui_config(self):
+        """从配置文件加载UI配置"""
+        ui_config = CoreService.get_ui_config()
+        
         # 对话框配置
         self.DIALOG_CONFIGS = {
             'verify_code': {
                 'title': '请输入验证码',
                 'size': (320, 120),
-                'timer_duration': 60
+                'timer_duration': ui_config.get('verify_code_timer_duration', 60)
             },
             'plate_letter': {
                 'title': '选择车牌字母',
@@ -46,12 +53,12 @@ class UICoreManager:
             'province': {
                 'title': '选择省份',
                 'size': (650, 440),
-                'hot_provinces': ['苏', '桂', '黑', '蒙', '湘', '川']
+                'hot_provinces': ui_config.get('hot_provinces', ['苏', '桂', '黑', '蒙', '湘', '川'])
             },
             'product': {
                 'title': '选择产品',
                 'size': (400, 250),
-                'warning_text': '⚠️ 【测试专用渠道手机号】：13797173255 请勿擅自修改系统数据！'
+                'warning_text': f'⚠️ 【测试专用渠道手机号】：{CoreService.get_business_config().get("default_verify_code", "13797173255")} 请勿擅自修改系统数据！'
             }
         }
         
@@ -91,14 +98,15 @@ class UICoreManager:
             ("身份证", "id_code", "", True),
             ("手机号", "phone", "", True),
             ("银行卡号", "bank_no", "", True),
-            ("车牌省份", "plate_province", "苏", False),
-            ("车牌字母", "plate_letter", "Z", False),
-            ("车牌号码", "plate_number", "9T4P0", False),
+            ("车牌省份", "plate_province", ui_config.get('default_province', '苏'), False),
+            ("车牌字母", "plate_letter", ui_config.get('default_letter', 'Z'), False),
+            ("车牌号码", "plate_number", ui_config.get('default_plate_number', '9T4P0'), False),
             ("VIN码", "vin", "", False),
         ]
         
         # 车牌颜色选项
-        self.PLATE_COLORS = ["蓝色", "黄色", "绿色", "白色", "黑色"]
+        vehicle_colors = CoreService.get_vehicle_colors()
+        self.PLATE_COLORS = list(vehicle_colors.keys())
         
         # 省份数据
         self.PROVINCE_DATA = [
@@ -175,7 +183,7 @@ class UICoreManager:
     
     def get_mysql_config(self) -> Dict[str, Any]:
         """获取MySQL配置 - 使用统一的配置服务"""
-        return ConfigService.get_mysql_config()
+        return CoreService.get_mysql_config()
     
     def get_selected_product(self) -> Optional[Dict[str, Any]]:
         """获取当前选择的产品"""
@@ -407,8 +415,9 @@ class UICoreManager:
         if not car_number:
             return False
         
-        # 车牌号码格式：省份简称 + 字母 + 5位数字字母组合
-        pattern = r'^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵青藏川宁琼粤港澳台][A-Z][A-Z0-9]{5}$'
+        # 使用配置文件中的验证规则
+        validation_config = CoreService.get_validation_config()
+        pattern = validation_config.get('car_number_pattern', r'^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵青藏川宁琼粤港澳台][A-Z][A-Z0-9]{5}$')
         return bool(re.match(pattern, car_number))
     
     def validate_id_code(self, id_code: str) -> bool:
@@ -416,8 +425,9 @@ class UICoreManager:
         if not id_code:
             return False
         
-        # 身份证号码格式：18位数字，最后一位可能是X
-        pattern = r'^\d{17}[\dXx]$'
+        # 使用配置文件中的验证规则
+        validation_config = CoreService.get_validation_config()
+        pattern = validation_config.get('id_code_pattern', r'^\d{17}[\dXx]$')
         return bool(re.match(pattern, id_code))
     
     def validate_phone(self, phone: str) -> bool:
@@ -425,8 +435,9 @@ class UICoreManager:
         if not phone:
             return False
         
-        # 手机号码格式：11位数字
-        pattern = r'^1[3-9]\d{9}$'
+        # 使用配置文件中的验证规则
+        validation_config = CoreService.get_validation_config()
+        pattern = validation_config.get('phone_pattern', r'^1[3-9]\d{9}$')
         return bool(re.match(pattern, phone))
     
     def validate_bank_card(self, bank_card: str) -> bool:
@@ -434,8 +445,9 @@ class UICoreManager:
         if not bank_card:
             return False
         
-        # 银行卡号格式：13-19位数字
-        pattern = r'^\d{13,19}$'
+        # 使用配置文件中的验证规则
+        validation_config = CoreService.get_validation_config()
+        pattern = validation_config.get('bank_card_pattern', r'^\d{13,19}$')
         return bool(re.match(pattern, bank_card))
     
     def validate_vin(self, vin: str) -> bool:
@@ -443,8 +455,9 @@ class UICoreManager:
         if not vin:
             return False
         
-        # VIN码格式：17位字母数字组合
-        pattern = r'^[A-Z0-9]{17}$'
+        # 使用配置文件中的验证规则
+        validation_config = CoreService.get_validation_config()
+        pattern = validation_config.get('vin_pattern', r'^[A-Z0-9]{17}$')
         return bool(re.match(pattern, vin))
     
     def validate_form_data(self, form_data: Dict[str, str]) -> Tuple[bool, List[str]]:
@@ -519,8 +532,12 @@ class UICoreManager:
         """验证文件路径"""
         return os.path.isfile(file_path)
     
-    def validate_file_extension(self, file_path: str, allowed_extensions: List[str]) -> bool:
+    def validate_file_extension(self, file_path: str, allowed_extensions: List[str] = None) -> bool:
         """验证文件扩展名"""
+        if allowed_extensions is None:
+            ui_config = CoreService.get_ui_config()
+            allowed_extensions = ui_config.get('allowed_file_extensions', ['.txt', '.csv', '.json'])
+        
         file_ext = os.path.splitext(file_path)[1].lower()
         return file_ext in allowed_extensions
     

@@ -67,6 +67,8 @@ class UIBuilder:
         product_layout = QGridLayout()
         product_layout.setSpacing(10)
         
+
+        
         # 产品选择
         product_label = QLabel("产品:")
         product_label.setStyleSheet(ui_styles.get_label_style())
