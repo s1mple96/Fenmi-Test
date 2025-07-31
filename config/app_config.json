@@ -1,0 +1,41 @@
+{
+  "jenkins": {
+    "url": "http://jenkins.example.com",
+    "user": "admin",
+    "token": "your_jenkins_token"
+  },
+  "wechat": {
+    "webhook": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_webhook_key"
+  },
+  "servers": {
+    "test_server": {
+      "host": "test.example.com",
+      "port": 22,
+      "username": "admin",
+      "password": "password"
+    }
+  },
+  "database": {
+    "hcb": {
+      "host": "192.168.1.60",
+      "port": 3306,
+      "username": "root",
+      "password": "fm123456",
+      "database": "hcb"
+    }
+  },
+  "api": {
+    "base_url": "http://788360p9o5.yicp.fun"
+  },
+  "etc_service": {
+    "base_url": "http://ectbao.imdo.co"
+  },
+  "browser_cookies": {
+    "JSESSIONID": "62513d79-39c2-4559-9afc-bc4deb4af7a0",
+    "ETCAdmin-Token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VyX2tleSI6IjEzN2Y1MWVhMjAwOTRjZTNiNDg5YjdjMDgzMTg1ODNlIiwidXNlcl9pZCI6MSwidXNlcm5hbWUiOiJhZG1pbiJ9.WjWNVQ1_PLu76QI_LnTZRtJLKfD331zRGdxDxfa6a94QoWeVWYSfr5kqT-pMAPh-gfuLDsCqgKEujsuAH9JaGw",
+    "ETCAdmin-Expires-In": "180",
+    "FmAdmin-Token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VyX2tleSI6IjI3OTI2MWI0ZDk0ZjQ2Mzk5ZDg3YmQ5OWJjOWUzM2U1IiwidXNlcl9pZCI6MSwidXNlcm5hbWUiOiJhZG1pbiJ9.V9GHIfv4r4J5bqADlo7gYJZYd6YYGxRVkwd4qdyk1aRzTq9g0qNJrZ9Ai6SRKYWTgeBpmZBLF-Kp-eT2k_TljQ",
+    "FmAdmin-Expires-In": "180",
+    "Admin-Token": "eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6IjFkYmM1NDk0LWI4YWYtNGU2OC05ODk2LWJiMzllZDlhMWJlMCJ9.SDPVu-PA3odiIvCUNe-rKe6TH2KlXobquC4Br4gll7I_8dkVs83T5IJwK61yESOFLXd-Wwm_CsGgS_cNudbs9A"
+  }
+} 
