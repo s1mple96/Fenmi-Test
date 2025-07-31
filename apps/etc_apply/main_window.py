@@ -7,9 +7,9 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
 
 from PyQt5.QtWidgets import QDialog
-from PyQt5.QtCore import pyqtSignal, Qt, QPoint, QEvent
-from apps.etc_apply.ui.ui_events import ui_events, excepthook
-from apps.etc_apply.ui.ui_utils import ui_builder
+from PyQt5.QtCore import pyqtSignal, Qt
+from apps.etc_apply.ui.rtx.ui_events import ui_events, excepthook
+from apps.etc_apply.ui.rtx.ui_utils import ui_builder
 
 class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
     """

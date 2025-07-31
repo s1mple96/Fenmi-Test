@@ -3,11 +3,11 @@
 ETC申办服务 - 整合流程控制和结果处理
 """
 from PyQt5.QtWidgets import QMessageBox
-from apps.etc_apply.services.etc_core import Core
-from apps.etc_apply.services.worker_thread import WorkerQThread
-from apps.etc_apply.services.data_service import DataService
-from apps.etc_apply.services.core_service import CoreService
-from apps.etc_apply.ui.ui_utils import ui_threads
+from apps.etc_apply.services.rtx.etc_core import Core
+from apps.etc_apply.services.rtx.worker_thread import WorkerQThread
+from apps.etc_apply.services.rtx.data_service import DataService
+from apps.etc_apply.services.rtx.core_service import CoreService
+from apps.etc_apply.ui.rtx.ui_utils import ui_threads
 
 
 def get_api_base_url():
@@ -139,7 +139,7 @@ def show_verify_dialog(ui):
         ui.worker_thread.finished_signal.connect(on_flow_finished)
         ui.worker_thread.start()
 
-    from apps.etc_apply.ui.ui_component import VerifyCodeDialog
+    from apps.etc_apply.ui.rtx.ui_component import VerifyCodeDialog
     dialog = VerifyCodeDialog(ui, on_get_code=lambda: on_get_code(), on_confirm=on_confirm)
     dialog.exec_()
 

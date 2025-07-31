@@ -2,11 +2,10 @@
 """
 UI样式管理器 - 统一管理UI样式和字段配置
 """
-from typing import Dict, Any, List, Tuple
+from typing import List, Tuple
 from PyQt5.QtWidgets import QWidget, QPushButton, QLineEdit, QComboBox, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QTextEdit, QScrollArea
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QPixmap
-from apps.etc_apply.ui.ui_core import ui_core
+from apps.etc_apply.ui.rtx.ui_core import ui_core
 
 
 class UIStyleManager:

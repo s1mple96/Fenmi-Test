@@ -9,11 +9,11 @@ from PyQt5.QtWidgets import (
     QPushButton, QLineEdit, QComboBox, QGroupBox, QGridLayout,
     QMessageBox
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QEvent, QPoint
-from PyQt5.QtGui import QFont, QPixmap, QDragEnterEvent, QDropEvent
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtGui import QFont, QDragEnterEvent, QDropEvent
 from common.mysql_util import MySQLUtil
 from common.path_util import resource_path
-from apps.etc_apply.services.core_service import CoreService
+from apps.etc_apply.services.rtx.core_service import CoreService
 
 
 # ==================== 验证码对话框 ====================
@@ -115,7 +115,7 @@ class DraggableGroupBox(QGroupBox):
             self._disable_child_drops(child)
 
     def init_style(self):
-        from apps.etc_apply.ui.ui_styles import ui_styles
+        from apps.etc_apply.ui.rtx.ui_styles import ui_styles
         self.setStyleSheet(ui_styles.get_draggable_group_normal_style())
         print("拖拽组件样式设置完成")
 
@@ -123,7 +123,7 @@ class DraggableGroupBox(QGroupBox):
         print(f"拖拽进入事件被触发，组件标题: {self.title()}")
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
-            from apps.etc_apply.ui.ui_styles import ui_styles
+            from apps.etc_apply.ui.rtx.ui_styles import ui_styles
             self.setStyleSheet(ui_styles.get_draggable_group_drag_enter_style())
             print("拖拽文件被接受")
         else:
@@ -209,7 +209,7 @@ class PlateLetterDialog(QDialog):
         self.accept()
 
     def highlight_selected(self, letter):
-        from apps.etc_apply.ui.ui_styles import ui_styles
+        from apps.etc_apply.ui.rtx.ui_styles import ui_styles
         print(f"[DEBUG] 高亮字母: {letter}")
         for k, btn in self.letter_buttons.items():
             if k == letter:
@@ -418,7 +418,7 @@ class ProductSelectDialog(QDialog):
         warning_text = f'⚠️ 【测试专用渠道手机号】：{default_verify_code} 请勿擅自修改系统数据！'
         
         warning_label = QLabel(warning_text)
-        from apps.etc_apply.ui.ui_styles import ui_styles
+        from apps.etc_apply.ui.rtx.ui_styles import ui_styles
         warning_label.setStyleSheet(ui_styles.get_warning_label_style())
         warning_label.setAlignment(Qt.AlignCenter)
         warning_label.setWordWrap(True)  # 允许文字换行

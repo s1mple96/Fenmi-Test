@@ -4,17 +4,13 @@ UI事件处理 - 统一管理所有UI事件绑定和处理
 """
 import threading
 from typing import Dict, Any, Callable
-from PyQt5.QtWidgets import QMessageBox, QWidget, QPushButton, QLineEdit, QComboBox, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QTextEdit, QScrollArea
-from PyQt5.QtCore import Qt, QMetaObject, Q_ARG
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtWidgets import QMessageBox
 from common.plate_util import random_plate_number
 from common.vin_util import get_next_vin
-from common.config_util import save_four_elements, FOUR_ELEMENTS_KEYS
-from apps.etc_apply.ui.ui_component import ProvinceDialog, ProductSelectDialog, PlateLetterDialog
-from apps.etc_apply.ui.ui_utils import ui_parser
-from apps.etc_apply.services.core_service import CoreService
-from apps.etc_apply.services.log_service import LogService
-from apps.etc_apply.ui.ui_core import ui_core
+from apps.etc_apply.ui.rtx.ui_component import ProvinceDialog, ProductSelectDialog, PlateLetterDialog
+from apps.etc_apply.ui.rtx.ui_utils import ui_parser
+from apps.etc_apply.services.rtx.log_service import LogService
+from apps.etc_apply.ui.rtx.ui_core import ui_core
 
 
 class UIEventManager:
@@ -158,8 +154,8 @@ class UIEventManager:
             # 设置处理中状态
             ui_core.set_processing_state(ui)
             
-            from apps.etc_apply.services.data_service import DataService
-            from apps.etc_apply.services.etc_service import start_etc_apply_flow
+            from apps.etc_apply.services.rtx.data_service import DataService
+            from apps.etc_apply.services.rtx.etc_service import start_etc_apply_flow
             
             params = DataService.build_apply_params_from_ui(ui)
             self.log_service.info("开始ETC申办流程")

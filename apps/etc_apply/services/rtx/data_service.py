@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any
 from common.mysql_util import MySQLUtil
-from apps.etc_apply.services.core_service import CoreService
+from apps.etc_apply.services.rtx.core_service import CoreService
 
 
 class DataService:

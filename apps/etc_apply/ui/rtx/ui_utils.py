@@ -8,13 +8,12 @@ import json
 import os
 from typing import Dict, Optional
 from PyQt5.QtWidgets import QWidget, QPushButton, QLineEdit, QComboBox, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QTextEdit, QGridLayout
-from PyQt5.QtCore import Qt, QMetaObject
 from PyQt5.QtGui import QFont
 
-from apps.etc_apply.ui import ui_events
-from apps.etc_apply.ui.ui_core import ui_core
-from apps.etc_apply.ui.ui_styles import ui_styles
-from apps.etc_apply.services.log_service import LogService
+from apps.etc_apply.ui.rtx import ui_events
+from apps.etc_apply.ui.rtx.ui_core import ui_core
+from apps.etc_apply.ui.rtx.ui_styles import ui_styles
+from apps.etc_apply.services.rtx.log_service import LogService
 
 
 class UIBuilder:
@@ -153,8 +152,8 @@ class UIBuilder:
     
     def build_form_section(self, ui) -> QGroupBox:
         """构建四要素信息区域（支持拖拽）"""
-        from apps.etc_apply.ui.ui_component import DraggableGroupBox
-        from apps.etc_apply.ui.ui_events import ui_events  # 修复未定义异常
+        from apps.etc_apply.ui.rtx.ui_component import DraggableGroupBox
+        from apps.etc_apply.ui.rtx.ui_events import ui_events  # 修复未定义异常
         form_group = DraggableGroupBox("四要素信息 (支持拖拽文件自动填充)")
         form_layout = QGridLayout()
         form_layout.setSpacing(10)  # 与车辆信息区域保持相同的间距

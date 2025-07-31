@@ -1,9 +1,6 @@
 import requests
-import logging
-import sys
-import traceback
-from apps.etc_apply.services.log_service import LogService
-from apps.etc_apply.services.core_service import CoreService
+from apps.etc_apply.services.rtx.log_service import LogService
+from apps.etc_apply.services.rtx.core_service import CoreService
 
 
 class ApiClient:

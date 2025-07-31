@@ -2,14 +2,13 @@
 """
 UI核心管理器 - 统一管理UI配置、状态和验证
 """
-import json
 import os
 import re
 from typing import Dict, Any, List, Tuple, Optional
 from enum import Enum
 from PyQt5.QtWidgets import QWidget, QPushButton, QLineEdit, QComboBox, QMessageBox
-from apps.etc_apply.services.core_service import CoreService
-from apps.etc_apply.services.log_service import LogService
+from apps.etc_apply.services.rtx.core_service import CoreService
+from apps.etc_apply.services.rtx.log_service import LogService
 
 
 class UIState(Enum):
