@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
+"""
+ETC申办服务 - 整合流程控制和结果处理
+"""
 from PyQt5.QtWidgets import QMessageBox
 from apps.etc_apply.services.etc_core import Core
 from apps.etc_apply.services.worker_thread import WorkerQThread
-from apps.etc_apply.services.valid_service import validate_and_complete_params
-from apps.etc_apply.services.result_service import handle_result
+from apps.etc_apply.services.data_service import DataService
+from apps.etc_apply.services.core_service import CoreService
 from apps.etc_apply.ui.ui_utils import ui_threads
-from apps.etc_apply.services.config_service import ConfigService
 
 
 def get_api_base_url():
     """从配置文件读取API基础URL"""
-    return ConfigService.get_api_base_url()
+    return CoreService.get_api_base_url()
 
 
 def start_etc_apply_flow(params, ui):
@@ -20,7 +22,7 @@ def start_etc_apply_flow(params, ui):
     :param ui: UI主窗口对象（用于信号、日志、进度等回调）
     """
     try:
-        params = validate_and_complete_params(params)
+        params = DataService.validate_and_complete_params(params)
     except ValueError as e:
         QMessageBox.warning(None, "参数错误", str(e))
         return
@@ -34,8 +36,8 @@ def start_etc_apply_flow(params, ui):
 
     def run_to_step6():
         # 从配置服务获取cookies和URL
-        browser_cookies = ConfigService.get_browser_cookies()
-        service_url = ConfigService.get_etc_service_url()
+        browser_cookies = CoreService.get_browser_cookies()
+        service_url = CoreService.get_api_base_url()
 
         worker = Core(
             params=params,
@@ -126,8 +128,7 @@ def show_verify_dialog(ui):
         ui.worker_thread.progress_signal.connect(ui.progress_signal.emit)
 
         def on_flow_finished(result):
-            from apps.etc_apply.services.result_service import close_mock_data
-            close_mock_data()
+            DataService.close_mock_data()
             if result is None:
                 # 流程异常
                 handle_result("申办流程异常，已关闭Mock数据", ui)
@@ -141,3 +142,18 @@ def show_verify_dialog(ui):
     from apps.etc_apply.ui.ui_component import VerifyCodeDialog
     dialog = VerifyCodeDialog(ui, on_get_code=lambda: on_get_code(), on_confirm=on_confirm)
     dialog.exec_()
+
+
+def handle_result(result, ui=None):
+    """
+    处理ETC申办流程结果
+    :param result: 结果数据
+    :param ui: 可选，UI对象用于信号/弹窗等
+    """
+    # 流程完成后关闭Mock数据
+    DataService.close_mock_data()
+    
+    if ui:
+        if hasattr(ui, 'log_signal'):
+            ui.log_signal.emit(str(result))
+    # 其它处理可扩展...

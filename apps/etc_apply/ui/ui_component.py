@@ -4,18 +4,16 @@ UI组件模块 - 包含各种可复用的UI组件
 """
 import os
 import json
-from typing import Optional, Dict, Any
 from PyQt5.QtWidgets import (
     QWidget, QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QLineEdit, QComboBox, QGroupBox, QGridLayout,
-    QMessageBox, QTextEdit, QScrollArea, QFrame
+    QMessageBox
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QEvent, QPoint
 from PyQt5.QtGui import QFont, QPixmap, QDragEnterEvent, QDropEvent
-from apps.etc_apply.ui.ui_core import ui_core
-from apps.etc_apply.services.log_service import LogService
 from common.mysql_util import MySQLUtil
 from common.path_util import resource_path
+from apps.etc_apply.services.core_service import CoreService
 
 
 # ==================== 验证码对话框 ====================
@@ -28,7 +26,11 @@ class VerifyCodeDialog(QDialog):
         self.setFixedSize(300, 200)
         self.on_get_code = on_get_code
         self.on_confirm = on_confirm
-        self.countdown = 60
+        
+        # 从配置文件获取倒计时时间
+        ui_config = CoreService.get_ui_config()
+        self.countdown = ui_config.get('verify_code_timer_duration', 60)
+        
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         self.init_ui()
@@ -69,7 +71,9 @@ class VerifyCodeDialog(QDialog):
         self.start_timer()
 
     def start_timer(self):
-        self.countdown = 60
+        # 从配置文件获取倒计时时间
+        ui_config = CoreService.get_ui_config()
+        self.countdown = ui_config.get('verify_code_timer_duration', 60)
         self.get_code_btn.setEnabled(False)
         self.timer.start(1000)
 
@@ -274,9 +278,6 @@ PROVINCE_DATA = [
     ("台", "台湾", "taiwan"),
 ]
 
-# 热门省份简称
-HOT_PROVINCES = ["苏", "桂", "黑", "蒙", "湘", "川"]
-
 class ProvinceDialog(QDialog):
     """省份选择对话框（热门+搜索+高亮已选）"""
     def __init__(self, parent=None, selected_province=None):
@@ -333,6 +334,10 @@ class ProvinceDialog(QDialog):
                 w.setParent(None)
         self.province_buttons = {}
 
+        # 获取热门省份配置
+        ui_config = CoreService.get_ui_config()
+        hot_provinces = ui_config.get('hot_provinces', ['苏', '桂', '黑', '蒙', '湘', '川'])
+
         # 搜索过滤
         keyword = self.search_edit.text().strip().lower()
         filtered = []
@@ -344,7 +349,7 @@ class ProvinceDialog(QDialog):
                 filtered.append((abbr, full, pinyin))
 
         # 热门区
-        for abbr in HOT_PROVINCES:
+        for abbr in hot_provinces:
             found = [item for item in filtered if item[0] == abbr]
             if found:
                 abbr, full, pinyin = found[0]
@@ -358,7 +363,7 @@ class ProvinceDialog(QDialog):
         max_cols = 7
         row, col = 0, 0
         for abbr, full, pinyin in filtered:
-            if abbr in HOT_PROVINCES:
+            if abbr in hot_provinces:
                 continue
             btn = QPushButton(f"{abbr}（{full}）")
             btn.setFixedSize(90, 35)
@@ -408,7 +413,11 @@ class ProductSelectDialog(QDialog):
         layout = QVBoxLayout()
         
         # 添加测试专用渠道提示标签
-        warning_label = QLabel('⚠️ 【测试专用渠道手机号】：13797173255 请勿擅自修改系统数据！')
+        business_config = CoreService.get_business_config()
+        default_verify_code = business_config.get('default_verify_code', '13797173255')
+        warning_text = f'⚠️ 【测试专用渠道手机号】：{default_verify_code} 请勿擅自修改系统数据！'
+        
+        warning_label = QLabel(warning_text)
         from apps.etc_apply.ui.ui_styles import ui_styles
         warning_label.setStyleSheet(ui_styles.get_warning_label_style())
         warning_label.setAlignment(Qt.AlignCenter)
@@ -464,10 +473,13 @@ class ProductSelectDialog(QDialog):
             if not mysql_conf:
                 return False
             
+            business_config = CoreService.get_business_config()
+            mock_config_id = business_config.get('mock_config_id', 55)
+            
             db = MySQLUtil(**mysql_conf)
             db.connect()
             value = '1' if enable else '0'
-            sql = "UPDATE rtx.sys_config t SET t.config_value = %s WHERE t.config_id = 55"
+            sql = f"UPDATE rtx.sys_config t SET t.config_value = %s WHERE t.config_id = {mock_config_id}"
             db.execute(sql, (value,))
             db.close()
             return True
@@ -512,14 +524,15 @@ class ProductSelectDialog(QDialog):
             self.operator_combo.addItems(operator_codes)
             
             # 设置运营商选择（优先使用上次选择，否则使用默认值）
-            target_operator = self._last_operator if self._last_operator else 'TXB'
-            operator_index = self.operator_combo.findText(target_operator)
+            business_config = CoreService.get_business_config()
+            default_operator = self._last_operator if self._last_operator else business_config.get('default_operator_code', 'TXB')
+            operator_index = self.operator_combo.findText(default_operator)
             
             if operator_index >= 0:
                 self.operator_combo.setCurrentIndex(operator_index)
-                print(f"设置运营商为{target_operator}，索引: {operator_index}")
+                print(f"设置运营商为{default_operator}，索引: {operator_index}")
                 # 直接加载产品，不触发运营商切换事件（避免弹出Mock确认对话框）
-                self._load_products_for_operator(target_operator)
+                self._load_products_for_operator(default_operator)
             else:
                 # 如果找不到上次选择的运营商，使用TXB
                 txb_index = self.operator_combo.findText('TXB')
