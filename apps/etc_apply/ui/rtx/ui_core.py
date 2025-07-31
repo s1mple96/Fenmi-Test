@@ -508,7 +508,12 @@ class UICoreManager:
             # 收集表单数据
             form_data = {}
             for key, widget in ui.inputs.items():
-                form_data[key] = widget.text().strip()
+                if hasattr(widget, 'text'):  # QLineEdit
+                    form_data[key] = widget.text().strip()
+                elif hasattr(widget, 'currentText'):  # QComboBox
+                    form_data[key] = widget.currentText()
+                else:
+                    form_data[key] = str(widget)
             
             # 验证数据
             is_valid, errors = self.validate_form_data(form_data)

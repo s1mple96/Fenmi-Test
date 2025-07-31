@@ -47,8 +47,14 @@ class CoreService:
     @staticmethod
     def get_config_path(filename: str) -> str:
         """获取配置文件路径"""
-        # 优先从 apps/etc_apply/config 目录加载
-        etc_config_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
+        # 获取当前文件所在目录 (apps/etc_apply/services/rtx)
+        current_dir = os.path.dirname(__file__)
+        
+        # 向上两级到 apps/etc_apply
+        etc_apply_dir = os.path.dirname(os.path.dirname(current_dir))
+        
+        # 构建config目录路径
+        etc_config_dir = os.path.join(etc_apply_dir, 'config')
         etc_config_path = os.path.join(etc_config_dir, filename)
         
         if os.path.exists(etc_config_path):
@@ -56,7 +62,9 @@ class CoreService:
         
         # 如果不存在，则从项目根目录的 config 目录加载（向后兼容）
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        return os.path.join(base_dir, 'config', filename)
+        fallback_path = os.path.join(base_dir, 'config', filename)
+        
+        return fallback_path
     
     @staticmethod
     def get_api_base_url() -> str:
@@ -296,6 +304,42 @@ class CoreService:
     def generate_verify_code() -> str:
         """生成验证码（日期格式：YYMMDD）"""
         return datetime.now().strftime("%y%m%d")
+    
+    @staticmethod
+    def generate_hash(timestamp=None) -> str:
+        """生成hash码（用于HCB API请求的hashcode参数）"""
+        import hashlib
+        import time
+        
+        # 如果没有提供时间戳，生成当前时间戳（毫秒）
+        if timestamp is None:
+            timestamp = int(time.time() * 1000)
+        
+        # HCB签名算法: md5('chefuAPPchefuapp@2018' + timestamp)
+        sign_string = f'chefuAPPchefuapp@2018{timestamp}'
+        
+        # 生成MD5 hash
+        hash_obj = hashlib.md5(sign_string.encode('utf-8'))
+        return hash_obj.hexdigest()
+    
+    @staticmethod
+    def generate_hcb_params(relativeurl, **extra_params):
+        """生成HCB API标准参数（包含正确的签名）"""
+        import time
+        
+        timestamp = int(time.time() * 1000)
+        hashcode = CoreService.generate_hash(timestamp)
+        
+        params = {
+            'relativeurl': relativeurl,
+            'caller': 'chefuAPP',
+            'timestamp': timestamp,
+            'hashcode': hashcode
+        }
+        
+        # 添加额外参数
+        params.update(extra_params)
+        return params
     
     @staticmethod
     def should_continue_on_error(step_number: int) -> bool:

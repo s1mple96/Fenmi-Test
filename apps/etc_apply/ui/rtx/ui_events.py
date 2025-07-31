@@ -62,6 +62,67 @@ class UIEventManager:
             self.log_service.error(f"随机车牌号码生成失败: {e}")
             QMessageBox.critical(ui, "错误", f"随机车牌号码生成失败: {e}")
     
+    def handle_truck_select_province(self, ui) -> None:
+        """处理货车省份选择事件"""
+        try:
+            current_abbr = ui.truck_plate_province_edit.text().strip()[:1]
+            dlg = ProvinceDialog(selected_province=current_abbr)
+            if dlg.exec_() == dlg.Accepted:
+                selected_province = dlg.get_selected_province()
+                ui.truck_plate_province_edit.setText(selected_province)
+                self.log_service.info(f"货车选择省份: {selected_province}")
+        except Exception as e:
+            self.log_service.error(f"货车省份选择失败: {e}")
+            QMessageBox.critical(ui, "错误", f"货车省份选择失败: {e}")
+    
+    def handle_truck_select_plate_letter(self, ui) -> None:
+        """处理货车车牌字母选择事件"""
+        try:
+            current_letter = 'Z'
+            dlg = PlateLetterDialog(selected_letter=current_letter)
+            if dlg.exec_() == dlg.Accepted:
+                selected_letter = dlg.get_selected_letter()
+                if selected_letter is None:
+                    selected_letter = 'Z'
+                ui.truck_plate_letter_edit.setText(selected_letter)
+                self.log_service.info(f"货车选择车牌字母: {selected_letter}")
+        except Exception as e:
+            self.log_service.error(f"货车车牌字母选择失败: {e}")
+            QMessageBox.critical(ui, "错误", f"货车车牌字母选择失败: {e}")
+    
+    def handle_truck_random_plate_number(self, ui) -> None:
+        """处理货车随机车牌号码事件"""
+        try:
+            # 获取车牌省份和字母
+            province = ui.truck_plate_province_edit.text().strip()
+            letter = ui.truck_plate_letter_edit.text().strip()
+            
+            if not province or not letter:
+                QMessageBox.warning(ui, "提示", "请先选择车牌省份和字母")
+                return
+            
+            # 生成随机车牌号码
+            random_number = random_plate_number()
+            ui.truck_plate_number_edit.setText(random_number)
+            self.log_service.info(f"货车生成随机车牌号码: {province}{letter}{random_number}")
+        except Exception as e:
+            self.log_service.error(f"货车随机车牌生成失败: {e}")
+            QMessageBox.critical(ui, "错误", f"货车随机车牌生成失败: {e}")
+
+    def handle_truck_get_vin(self, ui) -> None:
+        """处理货车VIN码获取事件"""
+        try:
+            if not hasattr(ui, 'truck_vin_index'):
+                ui.truck_vin_index = 0
+            vin, ui.truck_vin_index = get_next_vin(ui.truck_vin_index)
+            ui.truck_vin_edit.setText(vin)
+            self.log_service.info(f"货车自动获取VIN: {vin}")
+            if hasattr(ui, 'log_text'):
+                ui.log_text.append(f"货车已自动获取VIN: {vin}")
+        except Exception as e:
+            self.log_service.error(f"货车VIN码获取失败: {e}")
+            QMessageBox.critical(ui, "错误", f"货车VIN码获取失败: {e}")
+
     def handle_get_vin(self, ui) -> None:
         """处理VIN码获取事件"""
         try:
@@ -81,46 +142,73 @@ class UIEventManager:
         try:
             from PyQt5.QtWidgets import QFileDialog
             
-            # 收集四要素数据
-            four_elements_data = {}
-            for field_name, input_widget in ui.inputs.items():
-                value = input_widget.text().strip()
-                if value:  # 只保存非空值
-                    four_elements_data[field_name] = value
+            # 根据当前车辆类型确定要保存的字段
+            current_vehicle_type = getattr(ui, 'current_vehicle_type', 'passenger')
             
-            if not four_elements_data:
-                QMessageBox.warning(ui, "警告", "请先填写四要素信息！")
+            if current_vehicle_type == 'truck':
+                # 货车保存5要素：姓名、身份证、手机号、银行卡号、银行名称
+                target_fields = ['name', 'id_code', 'phone', 'bank_no', 'bank_name']
+                elements_name = "五要素"
+                file_name = "货车五要素信息.txt"
+            else:
+                # 客车保存4要素：姓名、身份证、手机号、银行卡号
+                target_fields = ['name', 'id_code', 'phone', 'bank_no']
+                elements_name = "四要素"
+                file_name = "客车四要素信息.txt"
+            
+            # 收集目标要素数据
+            elements_data = {}
+            for field_name in target_fields:
+                if field_name in ui.inputs:
+                    input_widget = ui.inputs[field_name]
+                    # 根据控件类型获取值
+                    if hasattr(input_widget, 'text'):  # QLineEdit
+                        value = input_widget.text().strip()
+                    elif hasattr(input_widget, 'currentText'):  # QComboBox
+                        value = input_widget.currentText().strip()
+                    else:
+                        value = str(input_widget).strip()
+                    
+                    if value:  # 只保存非空值
+                        elements_data[field_name] = value
+            
+            if not elements_data:
+                QMessageBox.warning(ui, "警告", f"请先填写{elements_name}信息！")
                 return
             
             # 弹出文件保存对话框
             file_path, _ = QFileDialog.getSaveFileName(
                 ui,
-                "保存四要素文件",
-                "四要素信息.txt",
+                f"保存{elements_name}文件",
+                file_name,
                 "文本文件 (*.txt);;所有文件 (*.*)"
             )
             
             if file_path:
                 # 保存到文件
                 with open(file_path, 'w', encoding='utf-8') as f:
-                    for field_name, value in four_elements_data.items():
-                        # 将英文字段名转换为中文显示
-                        field_mapping = {
-                            'name': '姓名',
-                            'id_code': '身份证', 
-                            'phone': '手机号',
-                            'bank_no': '银行卡号'
-                        }
-                        chinese_name = field_mapping.get(field_name, field_name)
-                        f.write(f"{chinese_name}: {value}\n")
+                    # 字段名映射
+                    field_mapping = {
+                        'name': '姓名',
+                        'id_code': '身份证', 
+                        'phone': '手机号',
+                        'bank_no': '银行卡号',
+                        'bank_name': '银行名称'
+                    }
+                    
+                    # 按照固定顺序输出
+                    for field_name in target_fields:
+                        if field_name in elements_data:
+                            chinese_name = field_mapping.get(field_name, field_name)
+                            f.write(f"{chinese_name}: {elements_data[field_name]}\n")
                 
-                self.log_service.info(f"四要素信息已保存到: {file_path}")
-                QMessageBox.information(ui, "成功", f"四要素信息已保存到:\n{file_path}")
+                self.log_service.info(f"{elements_name}信息已保存到: {file_path}")
+                QMessageBox.information(ui, "成功", f"{elements_name}信息已保存到:\n{file_path}")
             else:
                 self.log_service.info("用户取消了保存操作")
                 
         except Exception as e:
-            self.log_service.error(f"保存四要素失败: {e}")
+            self.log_service.error(f"保存{elements_name if 'elements_name' in locals() else '要素'}失败: {e}")
             QMessageBox.critical(ui, "错误", f"保存失败: {str(e)}")
     
     def handle_select_product(self, ui) -> None:
@@ -145,7 +233,7 @@ class UIEventManager:
             QMessageBox.critical(ui, "错误", f"产品选择失败: {e}")
     
     def handle_apply(self, ui) -> None:
-        """处理ETC申办事件"""
+        """处理ETC申办事件（支持客车和货车）"""
         try:
             # 先验证表单数据
             if not ui_core.validate_ui_form(ui):
@@ -154,6 +242,12 @@ class UIEventManager:
             # 设置处理中状态
             ui_core.set_processing_state(ui)
             
+            # 调用主界面的统一申办方法
+            if hasattr(ui, 'start_apply_flow'):
+                ui.start_apply_flow()
+                return
+            
+            # 兼容原有客车申办逻辑
             from apps.etc_apply.services.rtx.data_service import DataService
             from apps.etc_apply.services.rtx.etc_service import start_etc_apply_flow
             
@@ -198,10 +292,12 @@ class UIEventManager:
                 '身份证': 'id_code', 
                 '手机号': 'phone',
                 '银行卡号': 'bank_no',
+                '银行名称': 'bank_name',  # 添加银行名称映射
                 'name': 'name',
                 'id_code': 'id_code',
                 'phone': 'phone', 
-                'bank_no': 'bank_no'
+                'bank_no': 'bank_no',
+                'bank_name': 'bank_name'  # 添加英文字段映射
             }
             
             # 填充四要素字段
@@ -271,6 +367,22 @@ class UIEventManager:
             # 绑定保存四要素按钮事件
             if hasattr(ui, 'save_four_elements_btn'):
                 ui.save_four_elements_btn.clicked.connect(lambda: self.handle_save_four_elements(ui))
+            
+            # 绑定货车Tab的按钮事件
+            if hasattr(ui, 'truck_select_province_btn'):
+                ui.truck_select_province_btn.clicked.connect(lambda: self.handle_truck_select_province(ui))
+            
+            if hasattr(ui, 'truck_select_letter_btn'):
+                ui.truck_select_letter_btn.clicked.connect(lambda: self.handle_truck_select_plate_letter(ui))
+            
+            if hasattr(ui, 'truck_random_plate_btn'):
+                ui.truck_random_plate_btn.clicked.connect(lambda: self.handle_truck_random_plate_number(ui))
+            
+            if hasattr(ui, 'truck_save_four_elements_btn'):
+                ui.truck_save_four_elements_btn.clicked.connect(lambda: self.handle_save_four_elements(ui))
+            
+            if hasattr(ui, 'truck_get_vin_btn'):
+                ui.truck_get_vin_btn.clicked.connect(lambda: self.handle_truck_get_vin(ui))
             
             # 绑定产品选择事件
             if hasattr(ui, 'product_combo'):
