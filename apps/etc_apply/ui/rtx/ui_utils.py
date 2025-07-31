@@ -41,7 +41,7 @@ class UIBuilder:
     
     def build_traditional_ui(self, ui) -> None:
         """构建传统UI（无Tab）"""
-        # 创建主布局
+            # 创建主布局
         main_layout = QVBoxLayout()
         main_layout.setSpacing(15)
         main_layout.setContentsMargins(15, 15, 15, 15)
