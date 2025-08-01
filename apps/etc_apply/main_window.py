@@ -115,7 +115,7 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
             if self.current_vehicle_type == "truck":
                 self.save_four_elements_btn.setText("保存五要素")
             else:
-                self.save_four_elements_btn.setText("保存四要素")
+                self.save_four_elements_btn.setText("保存五要素")
         
         # 货车专用保存按钮
         if hasattr(self, 'truck_save_four_elements_btn'):
@@ -125,14 +125,79 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         """获取当前Tab的表单数据"""
         form_data = {}
         
-        # 收集所有输入控件的数据
-        for field_name, widget in self.inputs.items():
-            if hasattr(widget, 'text'):  # QLineEdit
-                form_data[field_name] = widget.text().strip()
-            elif hasattr(widget, 'currentText'):  # QComboBox
-                form_data[field_name] = widget.currentText()
+        # 根据当前车辆类型收集对应的表单数据
+        if self.current_vehicle_type == "passenger":
+            # 收集客车表单数据（使用通用字段名）
+            passenger_fields = [
+                'name_edit', 'id_code_edit', 'phone_edit', 
+                'bank_no_edit', 'bank_name_edit',
+                'plate_province_edit', 'plate_letter_edit', 
+                'plate_number_edit', 'vin_edit'
+            ]
+            
+            for field_name in passenger_fields:
+                if hasattr(self, field_name):
+                    widget = getattr(self, field_name)
+                    if hasattr(widget, 'text'):
+                        form_data[field_name.replace('_edit', '')] = widget.text().strip()
+                    elif hasattr(widget, 'currentText'):
+                        form_data[field_name.replace('_edit', '')] = widget.currentText()
+            
+            # 收集产品信息
+            if hasattr(self, 'product_edit'):
+                form_data['product'] = self.product_edit.text().strip()
+                
+        elif self.current_vehicle_type == "truck":
+            # 优先从inputs字典获取拖拽填充的数据
+            if hasattr(self, 'inputs') and self.inputs:
+                for field_name, widget in self.inputs.items():
+                    if hasattr(widget, 'text'):
+                        form_data[field_name] = widget.text().strip()
+                    elif hasattr(widget, 'currentText'):
+                        form_data[field_name] = widget.currentText()
             else:
-                form_data[field_name] = str(widget)
+                # 兼容旧版本，收集货车表单数据
+                truck_fields = [
+                    'truck_name_edit', 'truck_id_code_edit', 'truck_phone_edit', 
+                    'truck_bank_no_edit', 'truck_bank_name_edit',
+                    'truck_plate_province_edit', 'truck_plate_letter_edit', 
+                    'truck_plate_number_edit', 'truck_vin_edit',
+                    'truck_load_weight_edit', 'truck_length_edit', 'truck_width_edit', 'truck_height_edit'
+                ]
+                
+                for field_name in truck_fields:
+                    if hasattr(self, field_name):
+                        widget = getattr(self, field_name)
+                        if hasattr(widget, 'text'):
+                            form_data[field_name.replace('_edit', '')] = widget.text().strip()
+                        elif hasattr(widget, 'currentText'):
+                            form_data[field_name.replace('_edit', '')] = widget.currentText()
+                
+                # 收集货车特有的下拉框数据
+                truck_combo_fields = [
+                    'truck_vehicle_color_combo', 'truck_vehicle_type_combo', 
+                    'truck_use_purpose_combo', 'truck_axle_count_combo', 'truck_tire_count_combo'
+                ]
+                
+                for field_name in truck_combo_fields:
+                    if hasattr(self, field_name):
+                        widget = getattr(self, field_name)
+                        if hasattr(widget, 'currentText'):
+                            form_data[field_name.replace('_combo', '')] = widget.currentText()
+                
+                # 收集产品信息
+                if hasattr(self, 'truck_product_edit'):
+                    form_data['product'] = self.truck_product_edit.text().strip()
+        
+        else:
+            # 兼容传统模式，收集所有输入控件的数据
+            for field_name, widget in getattr(self, 'inputs', {}).items():
+                if hasattr(widget, 'text'):  # QLineEdit
+                    form_data[field_name] = widget.text().strip()
+                elif hasattr(widget, 'currentText'):  # QComboBox
+                    form_data[field_name] = widget.currentText()
+                else:
+                    form_data[field_name] = str(widget)
         
         # 添加车辆类型标识
         form_data['vehicle_type'] = self.current_vehicle_type
@@ -141,7 +206,6 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         if self.current_vehicle_type == "truck":
             form_data['plate_color'] = '黄色'  # 货车默认黄色
             form_data['use_purpose'] = '货运'
-            # 车辆类型从下拉框获取，不再强制设置为'货车'
         
         return form_data
 
@@ -156,7 +220,8 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
                 from apps.etc_apply.services.hcb.truck_service import start_truck_apply_flow
                 from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
                 
-                params = TruckDataService._build_truck_params(form_data)
+                # 传递UI对象给TruckDataService，以便获取选择的产品
+                params = TruckDataService._build_truck_params(self.get_current_form_data(), self)
                 start_truck_apply_flow(params, self)
                 
             else:

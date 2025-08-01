@@ -91,6 +91,29 @@ class UIBuilder:
         
         ui.passenger_layout.addStretch()
     
+    def build_truck_product_section(self, ui) -> QGroupBox:
+        """构建货车产品选择区域"""
+        product_group = QGroupBox("产品信息")
+        product_layout = QGridLayout()
+        product_layout.setSpacing(10)
+        product_layout.setColumnStretch(1, 1)
+        
+        # 产品选择
+        product_label = QLabel("产品:")
+        product_label.setStyleSheet(ui_styles.get_label_style())
+        ui.truck_product_edit = QLineEdit()
+        ui.truck_product_edit.setPlaceholderText("请选择货车产品")
+        ui.truck_product_edit.setAcceptDrops(False)  # 禁用拖拽
+        ui.truck_select_product_btn = QPushButton("选择产品")
+        ui.truck_select_product_btn.setStyleSheet(ui_styles.get_button_style())
+        
+        product_layout.addWidget(product_label, 0, 0)
+        product_layout.addWidget(ui.truck_product_edit, 0, 1)
+        product_layout.addWidget(ui.truck_select_product_btn, 0, 2)
+        
+        product_group.setLayout(product_layout)
+        return product_group
+    
     def build_truck_tab(self, ui) -> None:
         """构建货车Tab内容"""
         # 创建滚动区域
@@ -104,6 +127,10 @@ class UIBuilder:
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setSpacing(15)
         scroll_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # 构建货车产品选择区域
+        product_group = self.build_truck_product_section(ui)
+        scroll_layout.addWidget(product_group)
         
         # 构建货车表单组（分组显示）
         basic_group = self.build_truck_basic_section(ui)
@@ -138,7 +165,7 @@ class UIBuilder:
         ui.main_layout.addWidget(log_widget)
     
     def build_truck_basic_section(self, ui) -> QGroupBox:
-        """构建货车基础信息区域（复用客车字段，支持拖拽）"""
+        """构建货车基础信息区域（使用独立字段名，支持拖拽）"""
         from apps.etc_apply.ui.rtx.ui_component import DraggableGroupBox
         from apps.etc_apply.ui.rtx.ui_events import ui_events
         
@@ -147,26 +174,27 @@ class UIBuilder:
         basic_layout.setSpacing(10)
         basic_layout.setColumnStretch(1, 1)
         
-        # 复用客车的基础字段
+        # 货车专用的基础字段（使用独立前缀）
         basic_fields = [
-            ("name", "持卡人姓名", "", True),
-            ("id_code", "身份证号", "", True),
-            ("phone", "手机号", "", True),
-            ("bank_no", "银行卡号", "", True),
+            ("truck_name", "持卡人姓名", "", True),
+            ("truck_id_code", "身份证号", "", True),
+            ("truck_phone", "手机号", "", True),
+            ("truck_bank_no", "银行卡号", "", True),
+            ("truck_bank_name", "银行名称", "", True)
         ]
         
         row = 0
         for field_name, label, default_value, required in basic_fields:
-            # 创建标签（使用默认样式，与客车一致）
+            # 创建标签
             label_widget = QLabel(label + ("*" if required else ""))
             
-            # 创建输入控件（使用默认样式，与客车一致）
+            # 创建输入控件
             input_widget = QLineEdit()
             input_widget.setAcceptDrops(False)  # 禁用拖拽，避免与父组件冲突
             if default_value:
                 input_widget.setText(default_value)
             
-            # 存储到inputs字典
+            # 存储到inputs字典（使用货车专用字段名）
             ui.inputs[field_name] = input_widget
             
             # 添加到布局
@@ -174,18 +202,8 @@ class UIBuilder:
             basic_layout.addWidget(input_widget, row, 1)
             row += 1
         
-        # 添加银行名称（货车专用）
-        bank_name_label = QLabel("银行名称*")
-        ui.bank_name_edit = QLineEdit()
-        ui.bank_name_edit.setAcceptDrops(False)  # 禁用拖拽，避免与父组件冲突
-        ui.inputs['bank_name'] = ui.bank_name_edit
-        
-        basic_layout.addWidget(bank_name_label, row, 0)
-        basic_layout.addWidget(ui.bank_name_edit, row, 1)
-        row += 1
-        
-        # 添加保存四要素按钮（货车专用）
-        ui.truck_save_four_elements_btn = QPushButton("保存四要素")
+        # 添加保存五要素按钮（货车专用）
+        ui.truck_save_four_elements_btn = QPushButton("保存五要素")
         ui.truck_save_four_elements_btn.setStyleSheet(ui_styles.get_button_style())
         basic_layout.addWidget(ui.truck_save_four_elements_btn, row, 1)
         
@@ -482,22 +500,23 @@ class UIBuilder:
         return product_group
     
     def build_form_section(self, ui) -> QGroupBox:
-        """构建四要素信息区域（支持拖拽）"""
+        """构建五要素信息区域（支持拖拽）"""
         from apps.etc_apply.ui.rtx.ui_component import DraggableGroupBox
         from apps.etc_apply.ui.rtx.ui_events import ui_events  # 修复未定义异常
-        form_group = DraggableGroupBox("四要素信息 (支持拖拽文件自动填充)")
+        form_group = DraggableGroupBox("五要素信息 (支持拖拽文件自动填充)")
         form_layout = QGridLayout()
         form_layout.setSpacing(10)  # 与车辆信息区域保持相同的间距
         
-        # 添加四要素字段
-        four_elements_fields = [
+        # 添加五要素字段
+        five_elements_fields = [
             ("姓名", "name", "", True),
             ("身份证", "id_code", "", True),
             ("手机号", "phone", "", True),
-            ("银行卡号", "bank_no", "", True)
+            ("银行卡号", "bank_no", "", True),
+            ("银行名称", "bank_name", "", True)
         ]
         
-        for i, (label, field_name, default_value, is_required) in enumerate(four_elements_fields):
+        for i, (label, field_name, default_value, is_required) in enumerate(five_elements_fields):
             # 创建标签
             label_widget = QLabel(label)
             label_widget.setStyleSheet(ui_styles.get_label_style())
@@ -512,9 +531,9 @@ class UIBuilder:
             ui.inputs[field_name] = input_widget
         
         # 添加保存按钮
-        ui.save_four_elements_btn = QPushButton("保存四要素")
+        ui.save_four_elements_btn = QPushButton("保存五要素")
         ui.save_four_elements_btn.setStyleSheet(ui_styles.get_button_style())
-        form_layout.addWidget(ui.save_four_elements_btn, len(four_elements_fields), 1)
+        form_layout.addWidget(ui.save_four_elements_btn, len(five_elements_fields), 1)
         
         # 设置列宽比例，与车辆信息区域保持一致
         form_layout.setColumnStretch(1, 1)
@@ -523,6 +542,8 @@ class UIBuilder:
         # 绑定拖拽信号
         form_group.file_dropped.connect(lambda file_path: ui_events.handle_drag_drop(ui, file_path))
         return form_group
+    
+
     
     def build_button_section(self, ui) -> QWidget:
         """构建操作按钮区域"""

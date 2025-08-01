@@ -15,21 +15,7 @@ class CoreService:
     
     # ==================== 配置管理 ====================
     
-    _config_cache = None
     _etc_config_cache = None
-    
-    @staticmethod
-    def _load_config() -> Dict[str, Any]:
-        """加载主配置文件"""
-        if CoreService._config_cache is None:
-            config_path = CoreService.get_config_path('app_config.json')
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    CoreService._config_cache = json.load(f)
-            except Exception as e:
-                print(f"读取配置文件失败: {e}")
-                CoreService._config_cache = {}
-        return CoreService._config_cache
     
     @staticmethod
     def _load_etc_config() -> Dict[str, Any]:
@@ -374,5 +360,4 @@ class CoreService:
     @staticmethod
     def clear_cache():
         """清除配置缓存"""
-        CoreService._config_cache = None
         CoreService._etc_config_cache = None 

@@ -138,23 +138,37 @@ class UIEventManager:
             QMessageBox.critical(ui, "错误", f"VIN码获取失败: {e}")
     
     def handle_save_four_elements(self, ui) -> None:
-        """处理保存四要素按钮点击事件"""
+        """处理保存五要素按钮点击事件"""
         try:
             from PyQt5.QtWidgets import QFileDialog
             
-            # 根据当前车辆类型确定要保存的字段
+            # 根据当前车辆类型确定字段名和文件名
             current_vehicle_type = getattr(ui, 'current_vehicle_type', 'passenger')
             
-            if current_vehicle_type == 'truck':
-                # 货车保存5要素：姓名、身份证、手机号、银行卡号、银行名称
+            if current_vehicle_type == 'passenger':
+                # 客车专用字段（使用通用字段名）
                 target_fields = ['name', 'id_code', 'phone', 'bank_no', 'bank_name']
-                elements_name = "五要素"
-                file_name = "货车五要素信息.txt"
+                file_name = "客车五要素信息.txt"
+                field_mapping = {
+                    'name': '姓名',
+                    'id_code': '身份证', 
+                    'phone': '手机号',
+                    'bank_no': '银行卡号',
+                    'bank_name': '银行名称'
+                }
             else:
-                # 客车保存4要素：姓名、身份证、手机号、银行卡号
-                target_fields = ['name', 'id_code', 'phone', 'bank_no']
-                elements_name = "四要素"
-                file_name = "客车四要素信息.txt"
+                # 货车专用字段
+                target_fields = ['truck_name', 'truck_id_code', 'truck_phone', 'truck_bank_no', 'truck_bank_name']
+                file_name = "货车五要素信息.txt"
+                field_mapping = {
+                    'truck_name': '姓名',
+                    'truck_id_code': '身份证', 
+                    'truck_phone': '手机号',
+                    'truck_bank_no': '银行卡号',
+                    'truck_bank_name': '银行名称'
+                }
+            
+            elements_name = "五要素"
             
             # 收集目标要素数据
             elements_data = {}
@@ -187,15 +201,6 @@ class UIEventManager:
             if file_path:
                 # 保存到文件
                 with open(file_path, 'w', encoding='utf-8') as f:
-                    # 字段名映射
-                    field_mapping = {
-                        'name': '姓名',
-                        'id_code': '身份证', 
-                        'phone': '手机号',
-                        'bank_no': '银行卡号',
-                        'bank_name': '银行名称'
-                    }
-                    
                     # 按照固定顺序输出
                     for field_name in target_fields:
                         if field_name in elements_data:
@@ -231,6 +236,28 @@ class UIEventManager:
         except Exception as e:
             self.log_service.error(f"产品选择失败: {e}")
             QMessageBox.critical(ui, "错误", f"产品选择失败: {e}")
+    
+    def handle_truck_select_product(self, ui) -> None:
+        """处理货车产品选择事件"""
+        try:
+            from apps.etc_apply.ui.rtx.ui_component import TruckProductSelectDialog
+            dlg = TruckProductSelectDialog(ui)
+            if dlg.exec_() == dlg.Accepted and dlg.selected_product:
+                selected_product = dlg.selected_product
+                ui.truck_product_edit.setText(selected_product.get('NAME', ''))
+                ui.selected_truck_product = selected_product
+                
+                product_id = selected_product.get('ETCBANK_ID')
+                product_name = selected_product.get('NAME')
+                bank_code = selected_product.get('BANK_CODE')
+                
+                self.log_service.info(f"选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code})")
+                
+                if hasattr(ui, 'log_text'):
+                    ui.log_text.append(f"已选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code})")
+        except Exception as e:
+            self.log_service.error(f"货车产品选择失败: {e}")
+            QMessageBox.critical(ui, "错误", f"货车产品选择失败: {e}")
     
     def handle_apply(self, ui) -> None:
         """处理ETC申办事件（支持客车和货车）"""
@@ -283,22 +310,45 @@ class UIEventManager:
             
             if not elements:
                 print("文件解析失败")
-                ui_core.show_validation_error(ui, "解析失败", "未能从文件中解析出四要素信息！")
+                ui_core.show_validation_error(ui, "解析失败", "未能从文件中解析出五要素信息！")
                 return
             
-            # 字段名映射：中文字段名 -> 英文字段名
-            field_mapping = {
-                '姓名': 'name',
-                '身份证': 'id_code', 
-                '手机号': 'phone',
-                '银行卡号': 'bank_no',
-                '银行名称': 'bank_name',  # 添加银行名称映射
-                'name': 'name',
-                'id_code': 'id_code',
-                'phone': 'phone', 
-                'bank_no': 'bank_no',
-                'bank_name': 'bank_name'  # 添加英文字段映射
-            }
+            # 根据当前车辆类型选择字段映射
+            current_vehicle_type = getattr(ui, 'current_vehicle_type', 'passenger')
+            print(f"当前车辆类型: {current_vehicle_type}")
+            
+            if current_vehicle_type == 'passenger':
+                # 客车专用字段映射（使用通用字段名）
+                field_mapping = {
+                    '姓名': 'name',
+                    '身份证': 'id_code', 
+                    '手机号': 'phone',
+                    '银行卡号': 'bank_no',
+                    '银行名称': 'bank_name',
+                    # 客车字段的英文映射
+                    'passenger_name': 'name',
+                    'passenger_id_code': 'id_code',
+                    'passenger_phone': 'phone',
+                    'passenger_bank_no': 'bank_no',
+                    'passenger_bank_name': 'bank_name'
+                }
+            else:
+                # 货车专用字段映射
+                field_mapping = {
+                    '持卡人姓名': 'truck_name',
+                    '身份证号': 'truck_id_code',
+                    '姓名': 'truck_name',  # 添加姓名映射
+                    '身份证': 'truck_id_code',  # 添加身份证映射
+                    '手机号': 'truck_phone',
+                    '银行卡号': 'truck_bank_no',
+                    '银行名称': 'truck_bank_name',
+                    # 货车字段的英文映射
+                    'truck_name': 'truck_name',
+                    'truck_id_code': 'truck_id_code',
+                    'truck_phone': 'truck_phone', 
+                    'truck_bank_no': 'truck_bank_no',
+                    'truck_bank_name': 'truck_bank_name'
+                }
             
             # 填充四要素字段
             filled_count = 0
@@ -317,7 +367,7 @@ class UIEventManager:
             
             if filled_count > 0:
                 print(f"成功填充了 {filled_count} 个字段")
-                self.log_service.info(f"从文件 {file_path} 中自动填充了 {filled_count} 个四要素字段")
+                self.log_service.info(f"从文件 {file_path} 中自动填充了 {filled_count} 个五要素字段")
                 
                 # 构建解析内容显示
                 parsed_content = "解析内容：\n"
@@ -326,11 +376,11 @@ class UIEventManager:
                     if english_key and english_key in ui.inputs:
                         parsed_content += f"{chinese_key}: {value}\n"
                 
-                success_message = f"已从文件 {file_path} 中自动填充 {filled_count} 个四要素字段！\n\n{parsed_content}"
+                success_message = f"已从文件 {file_path} 中自动填充 {filled_count} 个五要素字段！\n\n{parsed_content}"
                 ui_core.show_validation_success(ui, "成功", success_message)
             else:
                 print("没有填充任何字段")
-                ui_core.show_validation_error(ui, "填充失败", "未能识别文件中的四要素字段！")
+                ui_core.show_validation_error(ui, "填充失败", "未能识别文件中的五要素字段！")
             
         except Exception as e:
             print(f"拖拽处理异常: {e}")
@@ -346,7 +396,20 @@ class UIEventManager:
     def bind_all_signals_and_shortcuts(self, ui) -> None:
         """绑定所有信号和快捷键"""
         try:
-            # 绑定按钮点击事件
+            # 绑定客车Tab的按钮点击事件
+            if hasattr(ui, 'passenger_select_province_btn'):
+                ui.passenger_select_province_btn.clicked.connect(lambda: self.handle_select_province(ui))
+            
+            if hasattr(ui, 'passenger_select_letter_btn'):
+                ui.passenger_select_letter_btn.clicked.connect(lambda: self.handle_select_plate_letter(ui))
+            
+            if hasattr(ui, 'passenger_random_number_btn'):
+                ui.passenger_random_number_btn.clicked.connect(lambda: self.handle_random_plate_number(ui))
+            
+            if hasattr(ui, 'passenger_get_vin_btn'):
+                ui.passenger_get_vin_btn.clicked.connect(lambda: self.handle_get_vin(ui))
+            
+            # 绑定传统模式的按钮点击事件（向后兼容）
             if hasattr(ui, 'select_province_btn'):
                 ui.select_province_btn.clicked.connect(lambda: self.handle_select_province(ui))
             
@@ -356,13 +419,16 @@ class UIEventManager:
             if hasattr(ui, 'random_plate_btn'):
                 ui.random_plate_btn.clicked.connect(lambda: self.handle_random_plate_number(ui))
             
-            # 绑定获取VIN按钮事件
             if hasattr(ui, 'get_vin_btn'):
                 ui.get_vin_btn.clicked.connect(lambda: self.handle_get_vin(ui))
             
             # 绑定选择产品按钮事件
             if hasattr(ui, 'select_product_btn'):
                 ui.select_product_btn.clicked.connect(lambda: self.handle_select_product(ui))
+            
+            # 绑定货车产品选择按钮
+            if hasattr(ui, 'truck_select_product_btn'):
+                ui.truck_select_product_btn.clicked.connect(lambda: self.handle_truck_select_product(ui))
             
             # 绑定保存四要素按钮事件
             if hasattr(ui, 'save_four_elements_btn'):

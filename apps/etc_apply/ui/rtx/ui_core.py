@@ -463,26 +463,51 @@ class UICoreManager:
         """验证表单数据"""
         errors = []
         
+        # 从外部传入当前车辆类型，而不是根据表单数据推断
+        # 这里需要从UI对象获取当前车辆类型
+        current_vehicle_type = form_data.get('vehicle_type', 'passenger')
+        
+        if current_vehicle_type == 'passenger':
+            # 客车系统验证（使用通用字段名）
+            required_fields = ['name', 'id_code', 'phone', 'bank_no', 'bank_name']
+            id_code_field = 'id_code'
+            phone_field = 'phone'
+            bank_no_field = 'bank_no'
+            system_name = "客车"
+        elif current_vehicle_type == 'truck':
+            # 货车系统验证
+            required_fields = ['truck_name', 'truck_id_code', 'truck_phone', 'truck_bank_no', 'truck_bank_name']
+            id_code_field = 'truck_id_code'
+            phone_field = 'truck_phone'
+            bank_no_field = 'truck_bank_no'
+            system_name = "货车"
+        else:
+            # 兼容旧版本，使用通用字段名
+            required_fields = ['name', 'id_code', 'phone', 'bank_no']
+            id_code_field = 'id_code'
+            phone_field = 'phone'
+            bank_no_field = 'bank_no'
+            system_name = "通用"
+        
         # 验证必填字段
-        required_fields = ['name', 'id_code', 'phone', 'bank_no']
         for field in required_fields:
             if field not in form_data or not form_data[field].strip():
-                errors.append(f"{field} 为必填项")
+                errors.append(f"{system_name}系统 - {field} 为必填项")
         
         # 验证身份证号码
-        if 'id_code' in form_data and form_data['id_code'].strip():
-            if not self.validate_id_code(form_data['id_code']):
-                errors.append("身份证号码格式不正确")
+        if id_code_field in form_data and form_data[id_code_field].strip():
+            if not self.validate_id_code(form_data[id_code_field]):
+                errors.append(f"{system_name}系统 - 身份证号码格式不正确")
         
         # 验证手机号码
-        if 'phone' in form_data and form_data['phone'].strip():
-            if not self.validate_phone(form_data['phone']):
-                errors.append("手机号码格式不正确")
+        if phone_field in form_data and form_data[phone_field].strip():
+            if not self.validate_phone(form_data[phone_field]):
+                errors.append(f"{system_name}系统 - 手机号码格式不正确")
         
         # 验证银行卡号
-        if 'bank_no' in form_data and form_data['bank_no'].strip():
-            if not self.validate_bank_card(form_data['bank_no']):
-                errors.append("银行卡号格式不正确")
+        if bank_no_field in form_data and form_data[bank_no_field].strip():
+            if not self.validate_bank_card(form_data[bank_no_field]):
+                errors.append(f"{system_name}系统 - 银行卡号格式不正确")
         
         # 验证车牌号码（如果填写了省份、字母、号码）
         if all(key in form_data for key in ['plate_province', 'plate_letter', 'plate_number']):
@@ -493,12 +518,12 @@ class UICoreManager:
             if province and letter and number:
                 car_number = province + letter + number
                 if not self.validate_car_number(car_number):
-                    errors.append("车牌号码格式不正确")
+                    errors.append(f"{system_name}系统 - 车牌号码格式不正确")
         
         # 验证VIN码
         if 'vin' in form_data and form_data['vin'].strip():
             if not self.validate_vin(form_data['vin']):
-                errors.append("VIN码格式不正确")
+                errors.append(f"{system_name}系统 - VIN码格式不正确")
         
         return len(errors) == 0, errors
     
@@ -514,6 +539,9 @@ class UICoreManager:
                     form_data[key] = widget.currentText()
                 else:
                     form_data[key] = str(widget)
+            
+            # 添加当前车辆类型信息
+            form_data['vehicle_type'] = getattr(ui, 'current_vehicle_type', 'passenger')
             
             # 验证数据
             is_valid, errors = self.validate_form_data(form_data)

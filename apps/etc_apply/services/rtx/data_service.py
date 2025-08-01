@@ -233,41 +233,125 @@ class DataService:
     
     @staticmethod
     def build_apply_params_from_ui(ui) -> Dict[str, Any]:
-        """从UI收集数据并构建ETC申办参数"""
-        # 收集基础表单数据
-        form_data = {k: w.text().strip() for k, w in ui.inputs.items()}
-        
-        # 添加车牌信息
-        if hasattr(ui, 'plate_province_edit'):
-            form_data['plate_province'] = ui.plate_province_edit.text().strip()
-        if hasattr(ui, 'plate_letter_edit'):
-            form_data['plate_letter'] = ui.plate_letter_edit.text().strip()
-        if hasattr(ui, 'plate_number_edit'):
-            form_data['plate_number'] = ui.plate_number_edit.text().strip()
-        if hasattr(ui, 'vin_edit'):
-            form_data['vin'] = ui.vin_edit.text().strip()
-        
-        # 添加产品信息
-        if hasattr(ui, 'selected_product') and ui.selected_product:
-            form_data['selected_product'] = ui.selected_product
-            # 记录产品选择日志
-            product_name = ui.selected_product.get('product_name', '')
-            operator_code = ui.selected_product.get('operator_code', '')
-            if hasattr(ui, 'log_text'):
-                ui.log_text.append(f"申办使用产品: {product_name} (ID: {ui.selected_product.get('product_id')}, 运营商: {operator_code})")
-        else:
-            # 记录默认产品日志
-            business_config = CoreService.get_business_config()
-            default_product_id = business_config.get('default_product_id', '1503564182627360770')
-            if hasattr(ui, 'log_text'):
-                ui.log_text.append(f"未选择产品，使用默认产品ID: {default_product_id}")
-        
-        # 添加车牌颜色
-        if hasattr(ui, 'plate_color_combo'):
-            form_data['vehicle_color'] = ui.plate_color_combo.currentText()
-        
-        # 构建完整参数
-        return DataService.build_apply_params(form_data)
+        """从UI构建申办参数"""
+        try:
+            # 收集表单数据
+            form_data = {}
+            
+            # 根据当前车辆类型收集表单数据
+            current_vehicle_type = getattr(ui, 'current_vehicle_type', 'passenger')
+            
+            if current_vehicle_type == 'passenger':
+                # 客车使用通用字段名
+                passenger_fields = {
+                    'name': 'name',
+                    'id_code': 'id_code',
+                    'phone': 'phone',
+                    'bank_no': 'bank_no',
+                    'bank_name': 'bank_name'
+                }
+                
+                # 收集客车表单数据
+                for ui_field, param_field in passenger_fields.items():
+                    if ui_field in ui.inputs:
+                        widget = ui.inputs[ui_field]
+                        if hasattr(widget, 'text'):
+                            value = widget.text().strip()
+                            if value:  # 只添加非空值
+                                form_data[param_field] = value
+            else:
+                # 货车使用货车专用字段名
+                truck_fields = {
+                    'truck_name': 'name',
+                    'truck_id_code': 'id_code',
+                    'truck_phone': 'phone',
+                    'truck_bank_no': 'bank_no',
+                    'truck_bank_name': 'bank_name'
+                }
+                
+                # 收集货车表单数据
+                for ui_field, param_field in truck_fields.items():
+                    if ui_field in ui.inputs:
+                        widget = ui.inputs[ui_field]
+                        if hasattr(widget, 'text'):
+                            value = widget.text().strip()
+                            if value:  # 只添加非空值
+                                form_data[param_field] = value
+            
+            # 根据当前车辆类型收集车牌信息
+            current_vehicle_type = getattr(ui, 'current_vehicle_type', 'passenger')
+            
+            if current_vehicle_type == 'passenger':
+                # 客车车牌字段名
+                province_widget = getattr(ui, 'plate_province_edit', None)
+                letter_widget = getattr(ui, 'plate_letter_edit', None)
+                number_widget = getattr(ui, 'plate_number_edit', None)
+                color_widget = getattr(ui, 'plate_color_combo', None)
+            else:
+                # 货车车牌字段名
+                province_widget = getattr(ui, 'truck_plate_province_edit', None)
+                letter_widget = getattr(ui, 'truck_plate_letter_edit', None)
+                number_widget = getattr(ui, 'truck_plate_number_edit', None)
+                color_widget = getattr(ui, 'truck_plate_color_combo', None)
+            
+            # 收集车牌信息
+            if province_widget and letter_widget and number_widget:
+                province = province_widget.text().strip()
+                letter = letter_widget.text().strip()
+                number = number_widget.text().strip()
+                if province and letter and number:
+                    form_data['car_num'] = province + letter + number
+                    form_data['plate_province'] = province
+                    form_data['plate_letter'] = letter
+                    form_data['plate_number'] = number
+            
+            # 收集车牌颜色
+            if color_widget:
+                if hasattr(color_widget, 'currentText'):
+                    form_data['vehicle_color'] = color_widget.currentText()
+                else:
+                    form_data['vehicle_color'] = color_widget.text().strip()
+            
+            # 添加VIN码
+            if current_vehicle_type == 'passenger':
+                vin_widget = getattr(ui, 'vin_edit', None)
+            else:
+                vin_widget = getattr(ui, 'truck_vin_edit', None)
+            
+            if vin_widget and hasattr(vin_widget, 'text'):
+                vin = vin_widget.text().strip()
+                if vin:
+                    form_data['vin'] = vin
+            
+            # 货车专用字段收集
+            if current_vehicle_type == 'truck':
+                truck_specific_fields = [
+                    'model', 'car_type', 'register_date', 'issue_date', 'engine_no',
+                    'vehicle_axles', 'vehicle_wheels', 'total_mass', 'unladen_mass',
+                    'approved_count', 'weight_limits', 'length', 'width', 'height',
+                    'urgent_contact', 'urgent_phone', 'effective_date', 'id_authority', 'id_address'
+                ]
+                
+                for field_name in truck_specific_fields:
+                    if field_name in ui.inputs:
+                        widget = ui.inputs[field_name]
+                        if hasattr(widget, 'text'):
+                            value = widget.text().strip()
+                            if value:
+                                form_data[field_name] = value
+                        elif hasattr(widget, 'currentText'):
+                            value = widget.currentText().strip()
+                            if value:
+                                form_data[field_name] = value
+            
+            # 添加车辆类型标识
+            form_data['vehicle_type'] = current_vehicle_type
+            
+            # 构建申办参数
+            return DataService.build_apply_params(form_data)
+            
+        except Exception as e:
+            raise Exception(f"从UI构建申办参数失败: {str(e)}")
     
     @staticmethod
     def build_apply_params(form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -280,6 +364,7 @@ class DataService:
             'idCode': form_data.get('id_code', ''),
             'bindBankPhone': form_data.get('phone', ''),
             'bindBankNo': form_data.get('bank_no', ''),
+            'bindBankName': form_data.get('bank_name', ''),  # 添加银行名称
         })
         
         # 车辆信息
@@ -288,6 +373,18 @@ class DataService:
             'vehicleColor': form_data.get('vehicle_color', '蓝色'),
             'vin': form_data.get('vin', ''),
         })
+        
+        # 货车专用参数
+        vehicle_type = form_data.get('vehicle_type', '')
+        if vehicle_type == 'truck' or vehicle_type == '货车':
+            params.update({
+                'vehicleAxles': form_data.get('vehicle_axles', '2'),
+                'vehicleWheels': form_data.get('vehicle_wheels', '4'),
+                'totalMass': form_data.get('total_mass', '18000'),
+                'unladenMass': form_data.get('unladen_mass', '7500'),
+                'model': form_data.get('model', 'EQ1180GZ5DJ1'),
+                'carType': form_data.get('car_type', '货车'),
+            })
         
         # 产品信息
         business_config = CoreService.get_business_config()
@@ -304,7 +401,17 @@ class DataService:
         params.update(default_params)
         
         # 验证参数
-        CoreService.validate_required_params(params, ['carNum', 'cardHolder', 'idCode', 'bindBankPhone', 'bindBankNo'])
+        vehicle_type = form_data.get('vehicle_type', '')
+        if vehicle_type == 'truck' or vehicle_type == '货车':
+            # 货车需要更多必需参数
+            CoreService.validate_required_params(params, [
+                'carNum', 'cardHolder', 'idCode', 'bindBankPhone', 'bindBankNo', 
+                'vin', 'vehicleAxles', 'vehicleWheels', 'totalMass', 'unladenMass', 
+                'model', 'carType'
+            ])
+        else:
+            # 客车基础参数验证
+            CoreService.validate_required_params(params, ['carNum', 'cardHolder', 'idCode', 'bindBankPhone', 'bindBankNo'])
         
         return params
     
