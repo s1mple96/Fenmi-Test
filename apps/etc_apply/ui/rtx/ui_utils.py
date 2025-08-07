@@ -379,10 +379,10 @@ class UIBuilder:
             ("length", "长(mm)", True, "8995"),
             ("width", "宽(mm)", True, "2496"),
             ("height", "高(mm)", True, "3800"),
-            ("urgent_contact", "紧急联系人", False, "测试联系人"),
-            ("urgent_phone", "紧急联系电话", False, "13316690083"),
-            ("effective_date", "身份证有效期", False, "20161025-20261025"),
-            ("id_authority", "发证机关", False, "公安局"),
+            ("urgent_contact", "紧急联系人", False, "张三"),
+            ("urgent_phone", "紧急联系电话", False, "13800138000"),
+            ("effective_date", "身份证有效期", False, "20200101-20300101"),
+            ("id_authority", "发证机关", False, "XX市公安局"),
             ("id_address", "身份证地址", False, ""),
         ]
         
@@ -405,6 +405,11 @@ class UIBuilder:
             row += 1
         
         specific_group.setLayout(specific_layout)
+        
+        # 隐藏货车专用信息区域
+        specific_group.setVisible(False)
+        specific_group.setMaximumHeight(0)  # 设置高度为0，完全隐藏
+        
         return specific_group
     
     def build_product_section(self, ui) -> QGroupBox:
