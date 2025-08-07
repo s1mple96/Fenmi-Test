@@ -82,8 +82,12 @@ class UIBuilder:
     def build_passenger_tab(self, ui) -> None:
         """构建客车Tab内容"""
         # 构建产品信息区域
-        product_widget = self.build_product_section(ui)
+        product_widget = self.build_passenger_product_section(ui)
         ui.passenger_layout.addWidget(product_widget)
+        
+        # 构建车辆信息区域
+        vehicle_widget = self.build_product_section(ui)
+        ui.passenger_layout.addWidget(vehicle_widget)
         
         # 构建四要素信息区域
         form_widget = self.build_form_section(ui)
@@ -412,13 +416,12 @@ class UIBuilder:
         
         return specific_group
     
-    def build_product_section(self, ui) -> QGroupBox:
-        """构建产品信息区域"""
-        product_group = QGroupBox("车辆信息")
+    def build_passenger_product_section(self, ui) -> QGroupBox:
+        """构建客车产品信息区域"""
+        product_group = QGroupBox("产品信息")
         product_layout = QGridLayout()
         product_layout.setSpacing(10)
-        
-
+        product_layout.setColumnStretch(1, 1)
         
         # 产品选择
         product_label = QLabel("产品:")
@@ -433,6 +436,16 @@ class UIBuilder:
         product_layout.addWidget(ui.product_edit, 0, 1)
         product_layout.addWidget(ui.select_product_btn, 0, 2)
         
+        product_group.setLayout(product_layout)
+        return product_group
+    
+    def build_product_section(self, ui) -> QGroupBox:
+        """构建车辆信息区域（移除产品选择）"""
+        vehicle_group = QGroupBox("车辆信息")
+        vehicle_layout = QGridLayout()
+        vehicle_layout.setSpacing(10)
+        vehicle_layout.setColumnStretch(1, 1)
+        
         # 车牌省份
         province_label = QLabel("车牌省份:")
         province_label.setStyleSheet(ui_styles.get_label_style())
@@ -442,9 +455,9 @@ class UIBuilder:
         ui.select_province_btn = QPushButton("选择")
         ui.select_province_btn.setStyleSheet(ui_styles.get_button_style())
         
-        product_layout.addWidget(province_label, 1, 0)
-        product_layout.addWidget(ui.plate_province_edit, 1, 1)
-        product_layout.addWidget(ui.select_province_btn, 1, 2)
+        vehicle_layout.addWidget(province_label, 0, 0)
+        vehicle_layout.addWidget(ui.plate_province_edit, 0, 1)
+        vehicle_layout.addWidget(ui.select_province_btn, 0, 2)
         
         # 车牌字母
         letter_label = QLabel("车牌字母:")
@@ -455,9 +468,9 @@ class UIBuilder:
         ui.select_letter_btn = QPushButton("选择字母")
         ui.select_letter_btn.setStyleSheet(ui_styles.get_button_style())
         
-        product_layout.addWidget(letter_label, 2, 0)
-        product_layout.addWidget(ui.plate_letter_edit, 2, 1)
-        product_layout.addWidget(ui.select_letter_btn, 2, 2)
+        vehicle_layout.addWidget(letter_label, 1, 0)
+        vehicle_layout.addWidget(ui.plate_letter_edit, 1, 1)
+        vehicle_layout.addWidget(ui.select_letter_btn, 1, 2)
         
         # 车牌号码
         number_label = QLabel("车牌号码:")
@@ -468,9 +481,9 @@ class UIBuilder:
         ui.random_plate_btn = QPushButton("随机")
         ui.random_plate_btn.setStyleSheet(ui_styles.get_button_style())
         
-        product_layout.addWidget(number_label, 3, 0)
-        product_layout.addWidget(ui.plate_number_edit, 3, 1)
-        product_layout.addWidget(ui.random_plate_btn, 3, 2)
+        vehicle_layout.addWidget(number_label, 2, 0)
+        vehicle_layout.addWidget(ui.plate_number_edit, 2, 1)
+        vehicle_layout.addWidget(ui.random_plate_btn, 2, 2)
         
         # 车牌颜色
         color_label = QLabel("车牌颜色:")
@@ -485,8 +498,8 @@ class UIBuilder:
         ui.plate_color_combo.setCurrentText("蓝色")
         ui.plate_color_combo.setAcceptDrops(False)  # 禁用拖拽
         
-        product_layout.addWidget(color_label, 4, 0)
-        product_layout.addWidget(ui.plate_color_combo, 4, 1)
+        vehicle_layout.addWidget(color_label, 3, 0)
+        vehicle_layout.addWidget(ui.plate_color_combo, 3, 1)
         
         # VIN码
         vin_label = QLabel("VIN码:")
@@ -497,12 +510,12 @@ class UIBuilder:
         ui.get_vin_btn = QPushButton("自动获取VIN")
         ui.get_vin_btn.setStyleSheet(ui_styles.get_button_style())
         
-        product_layout.addWidget(vin_label, 5, 0)
-        product_layout.addWidget(ui.vin_edit, 5, 1)
-        product_layout.addWidget(ui.get_vin_btn, 5, 2)
+        vehicle_layout.addWidget(vin_label, 4, 0)
+        vehicle_layout.addWidget(ui.vin_edit, 4, 1)
+        vehicle_layout.addWidget(ui.get_vin_btn, 4, 2)
         
-        product_group.setLayout(product_layout)
-        return product_group
+        vehicle_group.setLayout(vehicle_layout)
+        return vehicle_group
     
     def build_form_section(self, ui) -> QGroupBox:
         """构建五要素信息区域（支持拖拽）"""
