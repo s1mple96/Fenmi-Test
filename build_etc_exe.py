@@ -120,7 +120,7 @@ excludes = [
     'flask', 'django', 'fastapi', 'uvicorn', 'gunicorn', 'celery',
     
     # 数据库（保留pymysql）
-    'redis', 'pymongo', 'sqlalchemy', 'alembic', 'psycopg2',
+    'redis', 'pymysql', 'sqlalchemy', 'alembic', 'psycopg2',
     'cx_oracle', 'sqlite3',
     
     # 异步和网络（保留requests相关）

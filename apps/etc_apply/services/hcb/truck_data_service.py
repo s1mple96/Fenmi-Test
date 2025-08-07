@@ -317,6 +317,119 @@ class TruckDataService:
                 'error': str(e)
             }
     
+    @staticmethod
+    def insert_truck_user_extends(truck_user_id: str, truck_etc_apply_id: str, params: Dict[str, Any]) -> str:
+        """插入货车用户扩展信息到HCB_TRUCKUSEREXTENDS表（设备和运营商相关信息）"""
+        try:
+            import uuid
+            from datetime import datetime
+            
+            conf = TruckCoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 生成扩展信息ID
+            truckuser_extends_id = str(uuid.uuid4()).replace('-', '')
+            
+            # 根据实际表结构插入数据
+            sql = """
+            INSERT INTO hcb.hcb_truckuserextends 
+            (TRUCKUSEREXTENDS_ID, TRUCKUSER_ID, twice_active_count, freeze_active_count, 
+             total_active_count, DEVICE_USABLE, DEVICE_CATEGORY, NEGATIVE_BLACK, 
+             OPERATOR_STA, STA_SAME, BILL_TIME_EXCE, DEVICE_KEY, normal_status) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            
+            # 设置默认值，符合货车ETC的业务逻辑
+            db.execute(sql, (
+                truckuser_extends_id,      # TRUCKUSEREXTENDS_ID
+                truck_user_id,             # TRUCKUSER_ID
+                5,                         # twice_active_count: 剩余二次激活次数，默认5次
+                0,                         # freeze_active_count: 冻结二次激活次数，默认0
+                0,                         # total_active_count: 累计使用激活次数，默认0
+                '1',                       # DEVICE_USABLE: 设备适用类型，1-货车专用
+                '0',                       # DEVICE_CATEGORY: 设备类别，0-普通设备
+                '0',                       # NEGATIVE_BLACK: 一键余额负数下黑标识，默认0
+                '正常',                    # OPERATOR_STA: 运营商状态，默认正常
+                '1',                       # STA_SAME: 状态是否相同，默认1相同
+                '0',                       # BILL_TIME_EXCE: 账单时间异常，默认0正常
+                0,                         # DEVICE_KEY: 设备密钥，默认0(3DES)
+                '1'                        # normal_status: 正常状态，默认1
+            ))
+            
+            db.close()
+            
+            return truckuser_extends_id
+            
+        except Exception as e:
+            error_msg = TruckCoreService.format_database_error("插入货车用户扩展信息", e)
+            raise Exception(error_msg)
+    
+    @staticmethod
+    def insert_truck_device_stock(car_num: str, etc_sn: str, obu_no: str) -> Dict[str, str]:
+        """插入货车设备库存数据到hcb_newstock表"""
+        try:
+            import uuid
+            from datetime import datetime
+            
+            conf = TruckCoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 准备基础数据
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            base_data = {
+                "CARD_OPERATORS": "1",        # 卡片运营商
+                "STATUS": "1",                # 状态
+                "CAR_NUM": car_num,           # 车牌号
+                "STOCK_STATUS": "0",          # 库存状态
+                "SOURCE": "1",                # 来源
+                "REMARK": "激活设备不存在库存内", # 备注
+                "CREATE_TIME": now,           # 创建时间
+                "DEVICE_CATEGORY": "0"        # 设备类别
+            }
+            
+            # OBU设备数据 (TYPE=0)
+            obu_data = base_data.copy()
+            obu_data.update({
+                "NEWSTOCK_ID": uuid.uuid4().hex,
+                "INTERNAL_DEVICE_NO": obu_no,
+                "EXTERNAL_DEVICE_NO": obu_no,
+                "TYPE": "0"  # 0表示OBU
+            })
+            
+            # ETC设备数据 (TYPE=1)
+            etc_data = base_data.copy()
+            etc_data.update({
+                "NEWSTOCK_ID": uuid.uuid4().hex,
+                "INTERNAL_DEVICE_NO": etc_sn,
+                "EXTERNAL_DEVICE_NO": etc_sn,
+                "TYPE": "1"  # 1表示ETC
+            })
+            
+            # 插入数据库
+            def insert_row(row):
+                keys = ','.join(f'`{k}`' for k in row.keys())
+                vals = ','.join(['%s'] * len(row))
+                sql = f"INSERT INTO hcb.hcb_newstock ({keys}) VALUES ({vals})"
+                db.execute(sql, tuple(row.values()))
+            
+            insert_row(obu_data)
+            insert_row(etc_data)
+            db.close()
+            
+            return {
+                'car_num': car_num,
+                'obu_no': obu_no,
+                'etc_sn': etc_sn,
+                'obu_stock_id': obu_data['NEWSTOCK_ID'],
+                'etc_stock_id': etc_data['NEWSTOCK_ID']
+            }
+            
+        except Exception as e:
+            error_msg = TruckCoreService.format_database_error("插入货车设备库存", e)
+            raise Exception(error_msg)
+    
     # ==================== 参数处理 ====================
     
     @staticmethod

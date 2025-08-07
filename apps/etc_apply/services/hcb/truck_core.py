@@ -829,6 +829,22 @@ class TruckCore:
                 self.log_service.info(f"获取到用户ID: {self.truck_user_id}")
                 self.log_service.info(f"获取到钱包ID: {self.truck_user_wallet_id}")
                 
+                # 立即插入货车用户扩展信息表
+                try:
+                    from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+                    
+                    # HCB_TRUCKUSEREXTENDS表主要存储设备和运营商状态信息，不需要用户详细信息
+                    extends_id = TruckDataService.insert_truck_user_extends(
+                        self.truck_user_id, 
+                        self.truck_etc_apply_id, 
+                        {}  # 空参数，因为表结构主要是设备状态相关
+                    )
+                    self.log_service.info(f"✅ 已插入货车用户扩展信息: {extends_id}")
+                    
+                except Exception as e:
+                    # 扩展信息插入失败不影响主流程，但要记录错误
+                    self.log_service.error(f"⚠️ 插入货车用户扩展信息失败: {str(e)}")
+                
                 # 更新流程状态
                 self.flow_state.set_truck_info(
                     self.truck_etc_apply_id,
@@ -1161,6 +1177,23 @@ class TruckCore:
                 self.log_service.info(f"生成ETC号: {result['etc_sn']}")
                 self.log_service.info(f"生成OBU号: {result['obu_no']}")
                 self.log_service.info(f"激活时间: {result['activation_time']}")
+                
+                # 插入设备库存数据（关键步骤）
+                try:
+                    stock_result = TruckDataService.insert_truck_device_stock(
+                        car_num, 
+                        result['etc_sn'], 
+                        result['obu_no']
+                    )
+                    self.log_service.info(f"✅ 已插入设备库存数据:")
+                    self.log_service.info(f"   - OBU库存ID: {stock_result['obu_stock_id']}")
+                    self.log_service.info(f"   - ETC库存ID: {stock_result['etc_stock_id']}")
+                    self.log_service.info(f"   - OBU号: {stock_result['obu_no']}")
+                    self.log_service.info(f"   - ETC号: {stock_result['etc_sn']}")
+                except Exception as e:
+                    self.log_service.error(f"⚠️ 插入设备库存失败: {str(e)}")
+                    # 设备库存插入失败不应影响主流程，但要记录详细错误
+                    self.log_service.error(f"设备库存插入失败详情: {type(e).__name__}: {str(e)}")
                 
                 # 插入用户绑定车辆关系记录
                 # 尝试获取真实的用户ID（优先使用手机号）
