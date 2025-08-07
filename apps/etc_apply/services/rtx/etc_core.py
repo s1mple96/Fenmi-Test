@@ -48,6 +48,41 @@ class Core:
             # 成功消息正常显示
             print(f"[INFO] {message}")
         self.state.update_progress(step_number, message)
+    
+    def _handle_api_error(self, step_number: int, step_name: str, error: Exception):
+        """处理API错误，提供详细的错误信息"""
+        error_msg = CoreService.format_error_message(step_number, step_name, error)
+        
+        # 检查是否有详细错误信息
+        if hasattr(error, 'error_detail'):
+            error_detail = error.error_detail
+            
+            # 通过进度回调传递错误信息到UI
+            if self.state.progress_callback:
+                # 格式化详细错误信息
+                detailed_msg = f"步骤{step_number}: {step_name}失败\n"
+                detailed_msg += f"接口: {error_detail.get('api_path', '未知')}\n"
+                detailed_msg += f"错误码: {error_detail.get('error_code', '未知')}\n"
+                detailed_msg += f"错误信息: {error_detail.get('error_message', str(error))}"
+                
+                # 如果进度回调支持错误处理，传递详细信息
+                ui = None
+                
+                # 尝试多种方式获取UI对象
+                if hasattr(self.state.progress_callback, '__self__'):
+                    ui = self.state.progress_callback.__self__
+                elif hasattr(self.state.progress_callback, 'ui'):
+                    ui = self.state.progress_callback.ui
+                
+                if ui and hasattr(ui, 'show_api_error'):
+                    ui.show_api_error(
+                        f"步骤{step_number}: {step_name}", 
+                        error_detail.get('error_message', str(error)),
+                        error_detail.get('error_code')
+                    )
+        
+        self._update_progress(step_number, error_msg)
+        return error_msg
 
     # 分步方法
     def step1_check_car_num(self):
@@ -57,8 +92,7 @@ class Core:
             self._update_progress(1, StepManager.format_step_message(1))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(1, "校验车牌", e)
-            self._update_progress(1, error_msg)
+            error_msg = self._handle_api_error(1, "校验车牌", e)
             raise Exception(error_msg)
 
     def step2_check_is_not_car_num(self):
@@ -68,8 +102,7 @@ class Core:
             self._update_progress(2, StepManager.format_step_message(2))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(2, "校验是否可申办", e)
-            self._update_progress(2, error_msg)
+            error_msg = self._handle_api_error(2, "校验是否可申办", e)
             raise Exception(error_msg)
 
     def step3_get_channel_use_address(self):
@@ -79,8 +112,7 @@ class Core:
             self._update_progress(3, StepManager.format_step_message(3))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(3, "获取渠道地址", e)
-            self._update_progress(3, error_msg)
+            error_msg = self._handle_api_error(3, "获取渠道地址", e)
             raise Exception(error_msg)
 
     def step4_get_optional_service_list(self):
@@ -90,8 +122,7 @@ class Core:
             self._update_progress(4, StepManager.format_step_message(4))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(4, "获取可选服务", e)
-            self._update_progress(4, error_msg)
+            error_msg = self._handle_api_error(4, "获取可选服务", e)
             raise Exception(error_msg)
 
     def step5_submit_car_num(self):
@@ -103,8 +134,7 @@ class Core:
             self._update_progress(5, StepManager.format_step_message(5))
             return res
         except Exception as e:
-            error_msg = CoreService.format_error_message(5, "提交车牌", e)
-            self._update_progress(5, error_msg)
+            error_msg = self._handle_api_error(5, "提交车牌", e)
             raise Exception(error_msg)
 
     def step6_protocol_add(self):
@@ -114,8 +144,7 @@ class Core:
             self._update_progress(6, StepManager.format_step_message(6))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(6, "协议签署", e)
-            self._update_progress(6, error_msg)
+            error_msg = self._handle_api_error(6, "协议签署", e)
             raise Exception(error_msg)
 
     def step7_submit_identity_with_bank_sign(self):
@@ -132,8 +161,7 @@ class Core:
             self._update_progress(7, StepManager.format_step_message(7))
             return res
         except Exception as e:
-            error_msg = CoreService.format_error_message(7, "提交身份和银行卡信息", e)
-            self._update_progress(7, error_msg)
+            error_msg = self._handle_api_error(7, "提交身份和银行卡信息", e)
             raise Exception(error_msg)
 
     def run_step7_get_code(self, order_id, sign_order_id):
@@ -157,8 +185,7 @@ class Core:
             self._update_progress(8, StepManager.format_step_message(8))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(8, "签约校验", e)
-            self._update_progress(8, error_msg)
+            error_msg = self._handle_api_error(8, "签约校验", e)
             raise Exception(error_msg)
 
     def step9_save_vehicle_info(self, order_id=None):
@@ -172,8 +199,7 @@ class Core:
             self._update_progress(9, StepManager.format_step_message(9))
             return res
         except Exception as e:
-            error_msg = CoreService.format_error_message(9, "保存车辆信息", e)
-            self._update_progress(9, error_msg)
+            error_msg = self._handle_api_error(9, "保存车辆信息", e)
             raise Exception(error_msg)
 
     def step10_optional_service_update(self, order_id=None):
@@ -184,8 +210,7 @@ class Core:
             self._update_progress(10, StepManager.format_step_message(10))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(10, "可选服务更新", e)
-            self._update_progress(10, error_msg)
+            error_msg = self._handle_api_error(10, "可选服务更新", e)
             raise Exception(error_msg)
 
     def step11_withhold_pay(self, order_id=None, verify_code=None):
@@ -202,8 +227,7 @@ class Core:
             self._update_progress(11, StepManager.format_step_message(11))
             return result
         except Exception as e:
-            error_msg = CoreService.format_error_message(11, "代扣支付", e)
-            self._update_progress(11, error_msg)
+            error_msg = self._handle_api_error(11, "代扣支付", e)
             raise Exception(error_msg)
 
     def step12_update_db_status(self):

@@ -29,6 +29,9 @@ def start_truck_apply_flow(params, ui):
             ui.progress_signal.emit(percent, msg)
         if hasattr(ui, 'log_signal'):
             ui.log_signal.emit(msg)
+    
+    # 为progress_callback添加UI对象引用，以便错误处理能访问UI
+    progress_callback.ui = ui
 
     def run_truck_flow():
         # 从配置服务获取cookies和URL

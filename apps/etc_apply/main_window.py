@@ -18,6 +18,7 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
     """
     log_signal = pyqtSignal(str)  # 日志信号
     progress_signal = pyqtSignal(int, str)  # 百分比, 消息
+    error_signal = pyqtSignal(str, str)  # 错误标题, 错误内容
     apply_submitted = pyqtSignal(dict)  # 申办完成信号
 
     def __init__(self, parent=None):  # 构造函数
@@ -38,6 +39,7 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         # 绑定日志信号处理
         self.log_signal.connect(self.handle_log_message)
         self.progress_signal.connect(self.handle_progress_message)
+        self.error_signal.connect(self.handle_error_message)
         # 已彻底移除help_btn相关代码
         self.setWindowFlags(
             Qt.Window |
@@ -64,6 +66,48 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
             self.progress_label.setText(msg)
         if hasattr(self, 'progress_bar') and self.progress_bar:
             self.progress_bar.setValue(percent)
+
+    def handle_error_message(self, title, error_content):
+        """处理错误消息，在UI中显示详细错误信息"""
+        from PyQt5.QtWidgets import QMessageBox, QTextEdit
+        from PyQt5.QtCore import Qt
+        
+        # 创建详细错误对话框
+        error_dialog = QMessageBox(self)
+        error_dialog.setWindowTitle(title)
+        error_dialog.setIcon(QMessageBox.Critical)
+        
+        # 设置主要错误信息
+        if len(error_content) > 200:
+            # 如果错误内容很长，显示简短版本
+            short_content = error_content[:200] + "..."
+            error_dialog.setText(f"操作失败：{short_content}")
+        else:
+            error_dialog.setText(f"操作失败：{error_content}")
+        
+        # 添加详细信息
+        error_dialog.setDetailedText(error_content)
+        
+        # 添加按钮
+        error_dialog.setStandardButtons(QMessageBox.Ok | QMessageBox.Close)
+        error_dialog.setDefaultButton(QMessageBox.Ok)
+        
+        # 同时在日志中记录错误
+        self.log_signal.emit(f"❌ {title}: {error_content}")
+        
+        # 显示对话框
+        error_dialog.exec_()
+    
+    def show_api_error(self, api_name, error_message, status_code=None):
+        """显示API错误信息的便捷方法"""
+        title = f"{api_name} 接口错误"
+        
+        if status_code:
+            content = f"接口：{api_name}\n状态码：{status_code}\n错误信息：{error_message}"
+        else:
+            content = f"接口：{api_name}\n错误信息：{error_message}"
+        
+        self.error_signal.emit(title, content)
 
     def create_tab_container(self):
         """创建Tab容器"""
@@ -233,8 +277,10 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
                 start_etc_apply_flow(params, self)
                 
         except Exception as e:
-            self.log_signal.emit(f"启动申办流程失败: {str(e)}")
-            print(f"[ERROR] 启动申办流程失败: {str(e)}")
+            # 使用新的错误显示机制
+            error_message = str(e)
+            self.show_api_error("启动申办流程", error_message)
+            print(f"[ERROR] 启动申办流程失败: {error_message}")
 
 
 sys.excepthook = excepthook  # 设置全局异常钩子

@@ -37,8 +37,24 @@ class ApiClient:
                 if response_data.get("code") != 200:
                     # 提取业务错误信息
                     error_msg = response_data.get("msg") or response_data.get("message") or f"业务错误: {response_data.get('code')}"
-                    self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {response_data.get('code')} | 错误信息: {error_msg}")
-                    raise Exception(f"业务错误: {error_msg}")
+                    error_code = response_data.get("code")
+                    
+                    # 记录详细错误信息
+                    self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {error_code} | 错误信息: {error_msg}")
+                    
+                    # 创建结构化异常信息
+                    error_detail = {
+                        "api_path": path,
+                        "url": url,
+                        "error_code": error_code,
+                        "error_message": error_msg,
+                        "response_data": response_data
+                    }
+                    
+                    # 抛出结构化异常
+                    exception = Exception(f"业务错误: {error_msg}")
+                    exception.error_detail = error_detail
+                    raise exception
                 return response_data
             except Exception as e:
                 if "业务错误" not in str(e) and "code" not in str(e):  # 避免重复错误信息
@@ -49,10 +65,32 @@ class ApiClient:
             # 区分网络错误和API错误
             if "Connection refused" in str(e) or "timeout" in str(e).lower():
                 error_msg = CoreService.format_network_error(path, e)
+                error_type = "network_error"
+            elif "业务错误" in str(e):
+                # 业务错误已经有详细信息，直接抛出
+                raise e
             else:
                 error_msg = CoreService.handle_exception_with_context(path, e)
+                error_type = "system_error"
+            
+            # 记录错误
             self.log_service.log_api_error(path, data, e)
-            raise Exception(error_msg)
+            
+            # 创建结构化异常信息（非业务错误）
+            if not hasattr(e, 'error_detail'):
+                error_detail = {
+                    "api_path": path,
+                    "url": self.base_url + path,
+                    "error_type": error_type,
+                    "error_message": error_msg,
+                    "original_error": str(e)
+                }
+                
+                exception = Exception(error_msg)
+                exception.error_detail = error_detail
+                raise exception
+            else:
+                raise Exception(error_msg)
 
     # 业务高阶方法
     def check_car_num(self, params):

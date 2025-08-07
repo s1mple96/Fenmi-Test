@@ -124,6 +124,7 @@ class TruckApiClient:
                     # HCB接口成功标志是ret="1"
                     if response_data.get("ret") != "1":
                         error_msg = response_data.get("msg") or f"业务错误: {response_data.get('ret')}"
+                        error_code = response_data.get("ret")
                         
                         # 如果是服务器异常，尝试重试
                         if "服务器异常" in error_msg and attempt < max_retries - 1:
@@ -132,9 +133,22 @@ class TruckApiClient:
                             time.sleep(2)  # 等待2秒后重试
                             continue
                         
-                        self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {response_data.get('ret')} | 错误信息: {error_msg}")
+                        # 记录详细错误信息
+                        self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {error_code} | 错误信息: {error_msg}")
+                        
+                        # 创建结构化异常信息
+                        error_detail = {
+                            "api_path": path,
+                            "url": url,
+                            "error_code": error_code,
+                            "error_message": error_msg,
+                            "response_data": response_data
+                        }
+                        
                         # 立即抛出异常，不再重试
-                        raise Exception(f"业务错误: {error_msg}")
+                        exception = Exception(f"业务错误: {error_msg}")
+                        exception.error_detail = error_detail
+                        raise exception
                     return response_data
                 except Exception as e:
                     if "业务错误" not in str(e):

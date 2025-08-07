@@ -44,6 +44,42 @@ class TruckCore:
         
         self.log_service.info("货车申办流程初始化完成")
     
+    def _handle_api_error(self, step_number: int, step_name: str, error: Exception):
+        """处理API错误，提供详细的错误信息"""
+        # 格式化错误消息
+        error_msg = f"{step_number}.{step_name}失败: {str(error)}"
+        
+        # 检查是否有详细错误信息
+        if hasattr(error, 'error_detail'):
+            error_detail = error.error_detail
+            
+            # 通过进度回调传递错误信息到UI
+            if self.flow_state.progress_callback:
+                # 检查进度回调是否支持错误处理
+                ui = None
+                
+                # 尝试多种方式获取UI对象
+                if hasattr(self.flow_state.progress_callback, '__self__'):
+                    ui = self.flow_state.progress_callback.__self__
+                elif hasattr(self.flow_state.progress_callback, 'ui'):
+                    ui = self.flow_state.progress_callback.ui
+                
+                if ui and hasattr(ui, 'show_api_error'):
+                    ui.show_api_error(
+                        f"货车申办步骤{step_number}: {step_name}", 
+                        error_detail.get('error_message', str(error)),
+                        error_detail.get('error_code')
+                    )
+        
+        # 更新流程状态
+        self.flow_state.update_progress(
+            step_number, 
+            error_msg, 
+            TruckStepStatus.FAILED
+        )
+        self.log_service.error(error_msg)
+        return error_msg
+    
     def run_full_truck_flow(self) -> Dict[str, Any]:
         """执行完整货车申办流程"""
         try:
@@ -146,6 +182,23 @@ class TruckCore:
             else:
                 # 使用具体的错误信息，如果没有则使用默认信息
                 error_msg = error_detail if error_detail else f"{step_number}.{step_name}失败"
+                
+                # 检查是否是API错误，如果是则创建详细的错误信息显示
+                if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
+                    ui = None
+                    
+                    # 尝试多种方式获取UI对象
+                    if hasattr(self.flow_state.progress_callback, '__self__'):
+                        ui = self.flow_state.progress_callback.__self__
+                    elif hasattr(self.flow_state.progress_callback, 'ui'):
+                        ui = self.flow_state.progress_callback.ui
+                    
+                    if ui and hasattr(ui, 'show_api_error'):
+                        ui.show_api_error(
+                            f"货车申办步骤{step_number}: {step_name}",
+                            error_detail if error_detail else "步骤执行失败，请检查参数或网络连接"
+                        )
+                
                 self.flow_state.update_progress(
                     step_number, 
                     error_msg, 
@@ -158,15 +211,11 @@ class TruckCore:
                 return False
                 
         except Exception as e:
-            error_msg = f"{step_number}.{step_name}异常: {str(e)}"
-            self.flow_state.update_progress(
-                step_number, 
-                error_msg, 
-                TruckStepStatus.FAILED
-            )
-            self.log_service.error(error_msg)
+            # 使用新的错误处理机制
+            self._handle_api_error(step_number, step_name, e)
             # 通过进度回调传递错误信息到UI
             if self.flow_state.progress_callback:
+                error_msg = f"{step_number}.{step_name}异常: {str(e)}"
                 self.flow_state.progress_callback(int((step_number / 21) * 100), error_msg)
             return False
     
@@ -267,7 +316,13 @@ class TruckCore:
                 success = self._step12_submit_apply_bank_info()
                 return (success, None if success else "提交申办银行信息失败")
             except Exception as e:
-                return (False, str(e))
+                # 如果异常有详细错误信息，返回详细信息
+                if hasattr(e, 'error_detail'):
+                    error_detail = e.error_detail
+                    error_message = error_detail.get('error_message', str(e))
+                    return (False, error_message)
+                else:
+                    return (False, str(e))
             
         elif step_number == 13:
             # 步骤13: 交通违章查询（可选）
@@ -787,8 +842,10 @@ class TruckCore:
                 return False
             
         except Exception as e:
-            self.log_service.error(f"提交申办银行信息异常: {str(e)}")
-            return False
+            # 使用新的错误处理机制
+            self._handle_api_error(12, "提交申办银行信息", e)
+            # 重新抛出异常，让上层能获取到详细错误信息
+            raise e
     
     def _step13_traffic_query(self) -> bool:
         """步骤13: 交通违章查询（查询类接口，可跳过）"""
