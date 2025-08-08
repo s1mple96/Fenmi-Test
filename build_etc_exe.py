@@ -9,6 +9,9 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+import zipfile
+import io
+import requests
 
 def create_spec_file():
     """创建优化的spec文件"""
@@ -93,7 +96,6 @@ hiddenimports = [
     'certifi',
     'charset_normalizer',
     'idna',
-    'chardet',
     # 数据库相关模块（必需）
     'pymysql',
     'pymysql.cursors',
@@ -102,7 +104,6 @@ hiddenimports = [
     'pymysql.charset',
     'pymysql.converters',
     'pymysql.err',
-    'pymysql.util',
 ]
 
 # 定义需要排除的模块（减少大小）
@@ -120,7 +121,7 @@ excludes = [
     'flask', 'django', 'fastapi', 'uvicorn', 'gunicorn', 'celery',
     
     # 数据库（保留pymysql）
-    'redis', 'pymysql', 'sqlalchemy', 'alembic', 'psycopg2',
+    'sqlalchemy', 'alembic', 'psycopg2',
     'cx_oracle', 'sqlite3',
     
     # 异步和网络（保留requests相关）
@@ -139,10 +140,29 @@ excludes = [
     'tkinter', 'wx', 'kivy', 'pygame', 'pyglet', 'arcade',
     'pyopengl', 'pyglet', 'panda3d', 'ursina', 'pygame_gui',
     'pygame_menu', 'pygame_widgets', 'pygame_gui_elements',
-    
-    # 项目中不需要的模块（专注ETC申办）
-    'apps.data_generator',
-    'apps.go_jenkins',
+
+    # 未使用的Qt WebEngine相关（显著减小体积）
+    'PyQt5.QtWebEngine', 'PyQt5.QtWebEngineCore', 'PyQt5.QtWebEngineWidgets',
+
+    # SSH/加密相关（主程序未使用）
+    'paramiko', 'cryptography', 'bcrypt', 'nacl', 'PyNaCl',
+    # 数据生成相关（体积大且非核心功能）
+    'faker', 'text_unidecode',
+    # 更多未使用的模块
+    'PIL', 'Pillow', 'cv2', 'opencv', 'scipy', 'numpy', 'pandas',
+    'matplotlib', 'seaborn', 'plotly', 'bokeh', 'jupyter', 'IPython',
+    'ipykernel', 'zmq', 'tornado', 'notebook', 'qtconsole',
+    'sphinx', 'docutils', 'jinja2', 'markupsafe', 'werkzeug',
+    'flask', 'django', 'fastapi', 'uvicorn', 'gunicorn', 'celery',
+    'sqlalchemy', 'alembic', 'psycopg2', 'cx_oracle', 'sqlite3',
+    'asyncio', 'aiohttp', 'websockets', 'twisted', 'gevent', 'eventlet',
+    'greenlet', 'uvloop', 'httpx', 'requests_toolbelt', 'lxml',
+    'beautifulsoup4', 'selenium', 'playwright', 'puppeteer', 'scrapy',
+    'pyppeteer', 'requests_html', 'pyquery', 'feedparser', 'newspaper3k',
+    'readability', 'trafilatura', 'newspaper', 'feedfinder',
+    'tkinter', 'wx', 'kivy', 'pygame', 'pyglet', 'arcade',
+    'pyopengl', 'panda3d', 'ursina', 'pygame_gui', 'pygame_menu',
+    'pygame_widgets', 'pygame_gui_elements',
 ]
 
 a = Analysis(
@@ -163,6 +183,46 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
+# 精简 PyQt5 Qt 插件，仅保留必要插件以减小体积
+try:
+    import PyQt5
+    from pathlib import Path as _Path
+    _qt_plugins_dir = _Path(PyQt5.__file__).parent / 'Qt5' / 'plugins'
+    def _qp(rel):
+        return str((_qt_plugins_dir / rel).resolve()).replace(chr(92), chr(47))
+    _qt_keep = [
+        ('platforms/qwindows.dll', 'PyQt5/Qt5/plugins/platforms'),
+        ('imageformats/qjpeg.dll', 'PyQt5/Qt5/plugins/imageformats'),
+    ]
+    _qt_binaries = []
+    for rel, dest in _qt_keep:
+        _full = _qp(rel)
+        if os.path.exists(_full):
+            _qt_binaries.append((_full, dest, 'BINARY'))
+    # 过滤掉自动收集的 Qt 插件，再加入精简集合
+    a.binaries = [b for b in a.binaries if 'Qt5/plugins' not in b[1]] + _qt_binaries
+
+    # 进一步精简 Qt5/bin，仅保留核心 DLL
+    _qt_bin_allow = {
+        'Qt5Core.dll', 'Qt5Gui.dll', 'Qt5Widgets.dll',
+        'libEGL.dll', 'opengl32sw.dll', 'd3dcompiler_47.dll',
+    }
+    _filtered = []
+    for src, dest, typ in a.binaries:
+        base = os.path.basename(src)
+        if 'PyQt5/Qt5/bin' in dest.replace(chr(92), '/'):  # 只处理 Qt5/bin 目录
+            if base in _qt_bin_allow:
+                _filtered.append((src, dest, typ))
+            else:
+                # 丢弃未在允许列表中的 Qt5/bin 动态库
+                continue
+        else:
+            _filtered.append((src, dest, typ))
+    a.binaries = _filtered
+except Exception as _e:
+    # 如果失败，保持原有行为，避免构建中断
+    pass
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -173,9 +233,9 @@ exe = EXE(
     name='ETCApplySystem',  # 使用英文名称避免编码问题
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,  # Windows下禁用strip
-    upx=True,    # 使用UPX压缩
-    upx_exclude=[],
+    strip=False,  # Windows 下启用 strip 可能不稳定，关闭
+    upx=True,    # 使用UPX压缩（若 ensure_upx 成功会生效）
+    upx_exclude=['VCRUNTIME140.dll', 'python3.dll'],  # 排除可能不稳定的DLL
     runtime_tmpdir=None,
     console=False,  # 无控制台窗口
     disable_windowed_traceback=False,
@@ -202,6 +262,48 @@ def install_pyinstaller():
         return True
     except subprocess.CalledProcessError:
         print("❌ PyInstaller安装失败")
+        return False
+
+
+def ensure_upx():
+    """确保本地存在 upx，可自动下载启用，提升压缩率"""
+    # 先检测 PATH 中是否已存在 upx
+    try:
+        result = subprocess.run(['upx', '-V'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ 已检测到本地 UPX")
+            return True
+    except Exception:
+        pass
+    # 尝试下载 Windows x64 版 upx
+    try:
+        print("⏬ 正在下载 UPX...")
+        upx_url = 'https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip'
+        resp = requests.get(upx_url, timeout=60)
+        resp.raise_for_status()
+        tools_dir = Path('.tools/upx')
+        tools_dir.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+            # 提取 upx.exe
+            for name in zf.namelist():
+                if name.endswith('/upx.exe'):
+                    zf.extract(name, tools_dir)
+                    exe_path = tools_dir / name
+                    upx_exe = tools_dir / 'upx.exe'
+                    if upx_exe.exists():
+                        upx_exe.unlink()
+                    exe_path.rename(upx_exe)
+                    break
+        upx_path = str((tools_dir / 'upx.exe').resolve())
+        if os.path.exists(upx_path):
+            os.environ['PATH'] = str((tools_dir).resolve()) + os.pathsep + os.environ.get('PATH', '')
+            print(f"✅ UPX 就绪: {upx_path}")
+            return True
+        else:
+            print("⚠️ 未找到解压后的 upx.exe")
+            return False
+    except Exception as e:
+        print(f"⚠️ 下载 UPX 失败，将继续使用无UPX模式：{e}")
         return False
 
 def build_exe():
@@ -335,6 +437,9 @@ def main():
     # 安装PyInstaller
     if not install_pyinstaller():
         return
+    
+    # 确保UPX（可选）
+    ensure_upx()
     
     # 创建spec文件
     if not create_spec_file():

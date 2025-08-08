@@ -726,7 +726,7 @@ class TruckProductSelectDialog(QDialog):
         self.products = []
         self.filtered_products = []
         self.selected_product = None
-        self.previous_operator = None
+        self.previous_operator = None  # 记录前一个选择的运营商
         self.mock_enabled = False
         self.load_products()
         self.operator_combo.currentIndexChanged.connect(self.on_operator_changed)
@@ -737,9 +737,11 @@ class TruckProductSelectDialog(QDialog):
         return CoreService.get_hcb_mysql_config()
 
     def update_mock_config(self, enable=True):
-        """更新Mock数据配置"""
+        """更新Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
         try:
-            mysql_conf = self.get_mysql_config()
+            # 使用客车系统的rtx数据库配置
+            from apps.etc_apply.services.rtx.core_service import CoreService
+            mysql_conf = CoreService.get_rtx_mysql_config()
             if not mysql_conf:
                 return False
             
@@ -749,12 +751,49 @@ class TruckProductSelectDialog(QDialog):
             db = MySQLUtil(**mysql_conf)
             db.connect()
             value = '1' if enable else '0'
-            sql = f"UPDATE hcb.sys_config t SET t.config_value = %s WHERE t.config_id = {mock_config_id}"
+            sql = f"UPDATE rtx.sys_config t SET t.config_value = %s WHERE t.config_id = {mock_config_id}"
             db.execute(sql, (value,))
             db.close()
+            
+            if enable:
+                print("货车Mock数据已启用（使用rtx.sys_config表）")
+            else:
+                print("货车Mock数据已关闭（使用rtx.sys_config表）")
             return True
         except Exception as e:
-            QMessageBox.critical(self, "数据库错误", f"更新Mock配置失败: {str(e)}")
+            QMessageBox.critical(self, "错误", f"更新Mock配置失败: {str(e)}")
+            return False
+
+    def enable_mock_data(self):
+        """启用Mock数据配置（便捷方法）"""
+        try:
+            from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+            result = TruckDataService.enable_mock_data()
+            if result:
+                self.mock_enabled = True
+                print("✅ 货车Mock数据已启用")
+                return True
+            else:
+                print("❌ 启用货车Mock数据失败")
+                return False
+        except Exception as e:
+            print(f"❌ 启用货车Mock数据异常: {str(e)}")
+            return False
+
+    def close_mock_data(self):
+        """关闭Mock数据配置（便捷方法）"""
+        try:
+            from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+            result = TruckDataService.close_mock_data()
+            if result:
+                self.mock_enabled = False
+                print("✅ 货车Mock数据已关闭")
+                return True
+            else:
+                print("❌ 关闭货车Mock数据失败")
+                return False
+        except Exception as e:
+            print(f"❌ 关闭货车Mock数据异常: {str(e)}")
             return False
 
     def load_products(self):
@@ -791,7 +830,8 @@ class TruckProductSelectDialog(QDialog):
             for operator in operators_data:
                 operator_name = operator.get('name', 'Unknown')
                 operator_id = operator.get('id', 'Unknown')
-                display_text = f"{operator_name} ({operator_id})"
+                # 只显示运营商名称，不显示ID
+                display_text = operator_name
                 self.operator_combo.addItem(display_text, operator)
                 print(f"  添加运营商: {display_text}")
             
@@ -829,6 +869,57 @@ class TruckProductSelectDialog(QDialog):
         operator_id = current_operator.get('id')
         operator_name = current_operator.get('name')
         print(f"货车运营商切换为: {operator_name} (ID: {operator_id})")
+        
+        # 检查是否需要Mock数据（货车版本：根据运营商名称判断）
+        mock_required_operators = ['蒙通卡', '龙通卡', '湘通卡']  # 货车需要mock的运营商，对应客车的MTK、LTK、XTK
+        if operator_name in mock_required_operators:
+            # 记录前一个选择
+            if self.previous_operator and self.previous_operator.get('name') not in mock_required_operators:
+                # 保持前一个选择
+                pass
+            else:
+                # 如果没有前一个选择或前一个也是需要Mock的，设置默认运营商
+                for i in range(self.operator_combo.count()):
+                    item_data = self.operator_combo.itemData(i)
+                    if item_data and item_data.get('name') not in mock_required_operators:
+                        self.previous_operator = item_data
+                        break
+            
+            # 弹出确认对话框
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("确认")
+            msg_box.setText("该运营商需要【开通mock数据】请问是否继续？")
+            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.No)
+            # 设置按钮文本为中文
+            msg_box.button(QMessageBox.Yes).setText("继续")
+            msg_box.button(QMessageBox.No).setText("取消")
+            reply = msg_box.exec_()
+            
+            if reply == QMessageBox.Yes:
+                # 用户选择继续，开启Mock数据
+                if self.update_mock_config(True):
+                    self.mock_enabled = True
+                    QMessageBox.information(self, "提示", "货车Mock数据已开启")
+                else:
+                    # 如果开启失败，恢复到之前的选项
+                    if self.previous_operator:
+                        for i in range(self.operator_combo.count()):
+                            item_data = self.operator_combo.itemData(i)
+                            if item_data and item_data.get('id') == self.previous_operator.get('id'):
+                                self.operator_combo.setCurrentIndex(i)
+                                break
+                    return
+            else:
+                # 用户选择取消，恢复到之前的选项
+                if self.previous_operator:
+                    for i in range(self.operator_combo.count()):
+                        item_data = self.operator_combo.itemData(i)
+                        if item_data and item_data.get('id') == self.previous_operator.get('id'):
+                            self.operator_combo.setCurrentIndex(i)
+                            break
+                return
         
         # 根据运营商ID查询产品
         self._load_products_for_operator(current_operator)
@@ -894,6 +985,7 @@ class TruckProductSelectDialog(QDialog):
             # 设置产品下拉框
             self.combo.clear()
             for row in rows:
+                # 只显示产品名称和运营商编码，不显示产品ID
                 item_text = f"{row['NAME']}（{row['BANK_CODE']}）"
                 self.combo.addItem(item_text, row)
                 print(f"  添加货车产品: {item_text}")
@@ -919,7 +1011,7 @@ class TruckProductSelectDialog(QDialog):
                 print("没有找到任何货车产品")
             
             # 记录当前选择
-            self.previous_operator = operator_id
+            self.previous_operator = operator
             
         except Exception as e:
             QMessageBox.critical(self, "数据库错误", f"查询货车产品失败: {str(e)}")
@@ -927,6 +1019,7 @@ class TruckProductSelectDialog(QDialog):
             self.selected_product = None
 
     def on_select(self, idx):
+        """产品选择变化时的处理"""
         if 0 <= idx < len(self.filtered_products):
             self.selected_product = self.filtered_products[idx]
 

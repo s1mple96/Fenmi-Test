@@ -166,12 +166,19 @@ def handle_truck_result(result, ui=None):
     :param result: 结果数据
     :param ui: 可选，UI对象用于信号/弹窗等
     """
+    # 流程完成后关闭Mock数据（货车版本）
+    try:
+        from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+        TruckDataService.close_mock_data()
+    except Exception as e:
+        print(f"关闭货车Mock数据失败: {str(e)}")
+    
     if ui:
         if hasattr(ui, 'log_signal'):
             if result is None:
-                ui.log_signal.emit("货车申办流程异常结束")
+                ui.log_signal.emit("货车申办流程异常结束，已关闭Mock数据")
             else:
-                ui.log_signal.emit("货车申办流程全部完成！")
+                ui.log_signal.emit("货车申办流程全部完成！已关闭Mock数据")
                 if result.get("truck_etc_apply_id"):
                     ui.log_signal.emit(f"申办ID: {result['truck_etc_apply_id']}")
         

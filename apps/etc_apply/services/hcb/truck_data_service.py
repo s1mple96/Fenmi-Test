@@ -155,6 +155,56 @@ class TruckDataService:
             raise Exception(error_msg)
     
     @staticmethod
+    def close_mock_data() -> bool:
+        """关闭Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
+        try:
+            # 使用客车系统的rtx数据库配置
+            from apps.etc_apply.services.rtx.core_service import CoreService
+            mysql_conf = CoreService.get_rtx_mysql_config()
+            if not mysql_conf:
+                print("未找到MySQL连接配置，无法关闭Mock数据")
+                return False
+            
+            business_config = CoreService.get_business_config()
+            mock_config_id = business_config.get('mock_config_id', 55)
+            
+            db = MySQLUtil(**mysql_conf)
+            db.connect()
+            sql = f"UPDATE rtx.sys_config t SET t.config_value = '0' WHERE t.config_id = {mock_config_id}"
+            db.execute(sql)
+            db.close()
+            print("货车Mock数据已关闭（使用rtx.sys_config表）")
+            return True
+        except Exception as e:
+            print(f"关闭货车Mock数据失败: {str(e)}")
+            return False
+    
+    @staticmethod
+    def enable_mock_data() -> bool:
+        """启用Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
+        try:
+            # 使用客车系统的rtx数据库配置
+            from apps.etc_apply.services.rtx.core_service import CoreService
+            mysql_conf = CoreService.get_rtx_mysql_config()
+            if not mysql_conf:
+                print("未找到MySQL连接配置，无法启用Mock数据")
+                return False
+            
+            business_config = CoreService.get_business_config()
+            mock_config_id = business_config.get('mock_config_id', 55)
+            
+            db = MySQLUtil(**mysql_conf)
+            db.connect()
+            sql = f"UPDATE rtx.sys_config t SET t.config_value = '1' WHERE t.config_id = {mock_config_id}"
+            db.execute(sql)
+            db.close()
+            print("货车Mock数据已启用（使用rtx.sys_config表）")
+            return True
+        except Exception as e:
+            print(f"启用货车Mock数据失败: {str(e)}")
+            return False
+    
+    @staticmethod
     def insert_bind_car_rel(userinfo_id: str, truckuser_id: str) -> None:
         """插入用户绑定车辆关系记录"""
         try:
