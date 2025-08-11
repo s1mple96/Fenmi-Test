@@ -250,6 +250,11 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         if self.current_vehicle_type == "truck":
             form_data['plate_color'] = '黄色'  # 货车默认黄色
             form_data['use_purpose'] = '货运'
+            
+            # 添加选择的货车产品信息
+            if hasattr(self, 'selected_truck_product') and self.selected_truck_product:
+                form_data['selected_product'] = self.selected_truck_product
+                print(f"[DEBUG] 已添加选择的货车产品到表单数据: {self.selected_truck_product.get('NAME')} (ID: {self.selected_truck_product.get('ETCBANK_ID')})")
         
         return form_data
 

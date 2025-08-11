@@ -31,7 +31,7 @@ class TruckCore:
         self.truck_user_wallet_id = None
         self.order_id = None
         self.user_bind_bank_id = None
-        self.product_id = None
+        self.product_id = params.get('productId')  # 从传入参数获取产品ID
         self.bank_list = []
         self.product_info = {}
         
@@ -41,6 +41,11 @@ class TruckCore:
         self.product_list = []
         self.selected_product = None
         self.selected_bank = None
+        
+        # 检查是否已有用户选择的产品信息
+        self.user_has_selected_product = bool(self.product_id)
+        if self.user_has_selected_product:
+            self.log_service.info(f"检测到用户已选择产品ID: {self.product_id}，将跳过自动产品选择")
         
         self.log_service.info("货车申办流程初始化完成")
     
@@ -424,6 +429,15 @@ class TruckCore:
         try:
             self.log_service.info("2.获取运营商列表")
             
+            # 如果用户已选择产品，跳过运营商自动选择，使用传入的operatorId
+            if self.user_has_selected_product:
+                operator_id = self.params.get('operatorId')
+                if operator_id:
+                    self.log_service.info(f"✅ 使用用户选择的运营商ID: {operator_id}")
+                    # 创建一个模拟的运营商对象
+                    self.selected_operator = {'id': operator_id}
+                    return True
+            
             params = CoreService.generate_hcb_params('com.hcb.channel.getOperatorList')
             response = self.api_client.get_operator_list(params)
             
@@ -462,6 +476,13 @@ class TruckCore:
         """步骤3: 根据运营商获取产品列表"""
         try:
             self.log_service.info("3.获取产品列表")
+            
+            # 如果用户已选择产品，跳过产品列表获取和自动选择
+            if self.user_has_selected_product:
+                self.log_service.info(f"✅ 使用用户选择的产品ID: {self.product_id}")
+                # 创建一个模拟的产品对象
+                self.selected_product = {'id': self.product_id}
+                return True
             
             if not self.selected_operator:
                 raise Exception("未选择运营商")

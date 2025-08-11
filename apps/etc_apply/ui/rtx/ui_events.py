@@ -247,14 +247,22 @@ class UIEventManager:
                 ui.truck_product_edit.setText(selected_product.get('NAME', ''))
                 ui.selected_truck_product = selected_product
                 
+                            # 同时保存运营商信息
+            current_operator = dlg.operator_combo.currentData()
+            if current_operator:
+                ui.selected_truck_operator = current_operator
+                selected_product['OPERATOR_ID'] = current_operator.get('id')
+                selected_product['OPERATOR_NAME'] = current_operator.get('name')
+                
                 product_id = selected_product.get('ETCBANK_ID')
                 product_name = selected_product.get('NAME')
                 bank_code = selected_product.get('BANK_CODE')
+                operator_name = selected_product.get('OPERATOR_NAME', '未知')
                 
-                self.log_service.info(f"选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code})")
+                self.log_service.info(f"选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code}, 运营商: {operator_name})")
                 
                 if hasattr(ui, 'log_text'):
-                    ui.log_text.append(f"已选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code})")
+                    ui.log_text.append(f"已选择货车产品: {product_name} (ID: {product_id}, 银行: {bank_code}, 运营商: {operator_name})")
         except Exception as e:
             self.log_service.error(f"货车产品选择失败: {e}")
             QMessageBox.critical(ui, "错误", f"货车产品选择失败: {e}")

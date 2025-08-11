@@ -1028,10 +1028,10 @@ class TruckProductSelectDialog(QDialog):
         # 保存用户的选择
         if self.selected_product:
             current_operator = self.operator_combo.currentData()
-            operator_id = current_operator.get('operatorId') if current_operator else None
+            operator_id = current_operator.get('id') if current_operator else None
             TruckProductSelectDialog._last_operator = operator_id
             TruckProductSelectDialog._last_product = self.selected_product['NAME']
-            print(f"保存货车用户选择: 运营商ID={operator_id}, 产品={self._last_product}, 产品ID={self.selected_product.get('ETCBANK_ID')}")
+            print(f"保存货车用户选择: 运营商ID={operator_id}, 产品={self.selected_product['NAME']}, 产品ID={self.selected_product.get('ETCBANK_ID')}")
         self.accept()
 
     def reject(self):

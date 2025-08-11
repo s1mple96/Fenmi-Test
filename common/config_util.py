@@ -1,44 +1,59 @@
+# -*- coding: utf-8 -*-
+"""
+配置工具模块 - 支持桌面版和Web版配置
+"""
 import os
 import json
-from common.path_util import resource_path
+from pathlib import Path
 
-FOUR_ELEMENTS_KEYS = ['name', 'id_card', 'phone', 'bank_card']
+def get_project_root():
+    """获取项目根目录"""
+    current_file = Path(__file__).resolve()
+    # 从common/config_util.py向上两级到项目根目录
+    return current_file.parent.parent
 
-def read_json(path):
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return None
+def get_config(config_type='desktop'):
+    """
+    获取配置信息
+    
+    Args:
+        config_type: 配置类型，'desktop' 或 'web'
+    
+    Returns:
+        dict: 配置字典
+    """
+    project_root = get_project_root()
+    
+    if config_type == 'web':
+        # Web版配置文件
+        config_path = project_root / 'config' / 'web_config.json'
+    else:
+        # 桌面版配置文件
+        config_path = project_root / 'apps' / 'etc_apply' / 'config' / 'etc_config.json'
+        # 如果桌面版配置不存在，尝试使用通用配置
+        if not config_path.exists():
+            config_path = project_root / 'config' / 'app_config.json'
+    
+    try:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            print(f"警告: 配置文件不存在 - {config_path}")
+            return {}
+    except Exception as e:
+        print(f"读取配置文件失败: {e}")
+        return {}
 
-def write_json(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def get_web_config():
+    """获取Web配置（快捷方法）"""
+    return get_config('web')
 
-def four_elements_path():
-    return resource_path(os.path.join('config', 'four_elements.json'))
+def get_desktop_config():
+    """获取桌面版配置（快捷方法）"""
+    return get_config('desktop')
 
-def load_four_elements():
-    import os
-    from common.path_util import resource_path
-    path = resource_path(os.path.join('config', 'four_elements.json'))
-    item = read_json(path)
-    if isinstance(item, list) and item:
-        item = item[-1]
-    elif not item:
-        item = {}
-    # 只返回四要素字段
-    return {k: item.get(k, '') for k in FOUR_ELEMENTS_KEYS}
-
-def save_four_elements(item):
-    import os
-    from common.path_util import resource_path
-    path = resource_path(os.path.join('config', 'four_elements.json'))
-    data = read_json(path)
-    if not data:
-        data = []
-    elif not isinstance(data, list):
-        data = [data]
-    # 只保存四要素字段
-    four_item = {k: item.get(k, '') for k in FOUR_ELEMENTS_KEYS}
-    data.append(four_item)
-    write_json(path, data) 
+# 保持向后兼容性的默认函数
+def get_config_default():
+    """默认获取桌面版配置，保持向后兼容"""
+    return get_desktop_config() 

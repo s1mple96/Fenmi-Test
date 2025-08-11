@@ -28,3 +28,12 @@ class LogUtil:
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         return logger
+
+# 模块级别的 get_logger 函数，供外部直接导入使用
+def get_logger(name: str = 'default'):
+    """
+    模块级别的 get_logger 函数，内部调用 LogUtil.get_logger
+    :param name: 日志名称
+    :return: logger对象
+    """
+    return LogUtil.get_logger(name)

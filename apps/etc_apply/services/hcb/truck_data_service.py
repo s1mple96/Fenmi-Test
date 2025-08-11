@@ -615,17 +615,28 @@ class TruckDataService:
             params['productId'] = selected_product.get('ETCBANK_ID', '')
             params['bankCode'] = selected_product.get('BANK_CODE', '')
             params['bankName'] = selected_product.get('NAME', '')
-            print(f"使用选择的货车产品: {selected_product.get('NAME')} (ID: {selected_product.get('ETCBANK_ID')})")
+            # 使用选择的运营商ID
+            operator_id = selected_product.get('OPERATOR_ID', '717830e1c3a948709ec0a92b44400c60')
+            params['operatorId'] = operator_id
+            print(f"使用选择的货车产品: {selected_product.get('NAME')} (ID: {selected_product.get('ETCBANK_ID')}, 运营商: {operator_id})")
         elif 'selected_product' in form_data and form_data['selected_product']:
             product = form_data['selected_product']
-            params['productId'] = product.get('product_id')
+            # 处理货车产品数据结构 - 优先使用ETCBANK_ID，兼容product_id
+            product_id = product.get('ETCBANK_ID') or product.get('product_id')
+            params['productId'] = product_id
+            params['bankCode'] = product.get('BANK_CODE', '')
+            params['bankName'] = product.get('NAME', '')
+            # 使用选择的运营商ID
+            operator_id = product.get('OPERATOR_ID', '717830e1c3a948709ec0a92b44400c60')
+            params['operatorId'] = operator_id
+            print(f"使用表单中的货车产品: {product.get('NAME')} (ID: {product_id}, 运营商: {operator_id})")
         else:
             params['productId'] = business_config.get('default_product_id', '0bcc3075edef4151a9a2bff052607a24')
+            params['operatorId'] = '717830e1c3a948709ec0a92b44400c60'  # 默认苏通卡运营商
         
         # 填充默认参数
         params.update({
             'channelId': '0000',
-            'operatorId': '717830e1c3a948709ec0a92b44400c60',
             'isCompany': '0',
             'obuSubmitStatus': '1',
             'ethnic': '汉',
