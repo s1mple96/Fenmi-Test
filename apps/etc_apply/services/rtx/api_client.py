@@ -43,13 +43,14 @@ class ApiClient:
                     self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {error_code} | 错误信息: {error_msg}")
                     
                     # 创建结构化异常信息
-                    error_detail = {
-                        "api_path": path,
-                        "url": url,
-                        "error_code": error_code,
-                        "error_message": error_msg,
-                        "response_data": response_data
-                    }
+                    error_detail = CoreService.create_api_error_detail(
+                        api_path=path,
+                        url=url,
+                        error_code=error_code,
+                        error_message=error_msg,
+                        request_data=data,
+                        response_data=response_data
+                    )
                     
                     # 抛出结构化异常
                     exception = Exception(f"业务错误: {error_msg}")

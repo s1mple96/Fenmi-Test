@@ -67,26 +67,86 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         if hasattr(self, 'progress_bar') and self.progress_bar:
             self.progress_bar.setValue(percent)
 
+    def show_api_error(self, api_name, error_message, status_code=None):
+        """显示API错误信息的便捷方法"""
+        title = f"{api_name} 接口错误"
+        
+        # 构建简洁的错误内容
+        if status_code:
+            content = f"接口：{api_name}\n状态码：{status_code}\n错误信息：{error_message}"
+        else:
+            content = f"接口：{api_name}\n错误信息：{error_message}"
+        
+        # 发送错误信号到UI（这会触发handle_error_message显示对话框）
+        self.error_signal.emit(title, content)
+    
     def handle_error_message(self, title, error_content):
         """处理错误消息，在UI中显示详细错误信息"""
         from PyQt5.QtWidgets import QMessageBox, QTextEdit
         from PyQt5.QtCore import Qt
+        import os
         
         # 创建详细错误对话框
         error_dialog = QMessageBox(self)
         error_dialog.setWindowTitle(title)
         error_dialog.setIcon(QMessageBox.Critical)
         
-        # 设置主要错误信息
+        # 设置主要错误信息（如果太长则显示简短版本）
         if len(error_content) > 200:
-            # 如果错误内容很长，显示简短版本
-            short_content = error_content[:200] + "..."
+            # 如果错误内容很长，显示简短版本在主文本中
+            lines = error_content.split('\n')
+            short_content = lines[0] if lines else error_content[:200] + "..."
             error_dialog.setText(f"操作失败：{short_content}")
         else:
             error_dialog.setText(f"操作失败：{error_content}")
         
-        # 添加详细信息
-        error_dialog.setDetailedText(error_content)
+        # 检查错误内容是否已经包含调试信息
+        if "📋 API调用详情" in error_content:
+            # 如果错误内容已经包含详细的调试信息，直接使用
+            detailed_content = error_content
+        else:
+            # 如果没有详细调试信息，构建基本的详细信息
+            detailed_content = error_content
+            
+            # 检查是否有接口错误的基本信息（通过特定格式识别）
+            if "接口错误" in title:
+                detailed_content += "\n\n" + "="*50 + "\n"
+                detailed_content += "📋 错误详情\n"
+                detailed_content += "="*50 + "\n"
+                detailed_content += "🔹 这是一个API接口调用错误\n"
+                
+                # 添加日志文件位置信息
+                try:
+                    # 获取当前exe所在目录
+                    if hasattr(sys, 'frozen') and sys.frozen:
+                        # 打包后的exe环境
+                        exe_dir = os.path.dirname(sys.executable)
+                        log_dir = os.path.join(exe_dir, 'log')
+                    else:
+                        # 开发环境
+                        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                        log_dir = os.path.join(project_root, 'log')
+                    
+                    # 获取今天的日志文件名
+                    from datetime import datetime
+                    today_log = f"run_{datetime.now().strftime('%Y%m%d')}.log"
+                    log_file_path = os.path.join(log_dir, today_log)
+                    
+                    detailed_content += f"🔹 详细日志文件位置: {log_file_path}\n"
+                    if os.path.exists(log_file_path):
+                        detailed_content += f"🔹 日志文件状态: 存在 ({os.path.getsize(log_file_path)} 字节)\n"
+                    else:
+                        detailed_content += f"🔹 日志文件状态: 不存在\n"
+                    
+                    detailed_content += f"🔹 如需更详细的调试信息，请查看上述日志文件\n"
+                except Exception as e:
+                    detailed_content += f"🔹 无法确定日志文件位置: {str(e)}\n"
+        
+        # 始终在详细信息中显示完整内容
+        error_dialog.setDetailedText(detailed_content)
+        
+        # 设置对话框大小，确保能显示足够的信息
+        error_dialog.setMinimumSize(500, 300)
         
         # 添加按钮
         error_dialog.setStandardButtons(QMessageBox.Ok | QMessageBox.Close)
@@ -97,17 +157,6 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         
         # 显示对话框
         error_dialog.exec_()
-    
-    def show_api_error(self, api_name, error_message, status_code=None):
-        """显示API错误信息的便捷方法"""
-        title = f"{api_name} 接口错误"
-        
-        if status_code:
-            content = f"接口：{api_name}\n状态码：{status_code}\n错误信息：{error_message}"
-        else:
-            content = f"接口：{api_name}\n错误信息：{error_message}"
-        
-        self.error_signal.emit(title, content)
 
     def create_tab_container(self):
         """创建Tab容器"""
@@ -250,7 +299,7 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         if self.current_vehicle_type == "truck":
             form_data['plate_color'] = '黄色'  # 货车默认黄色
             form_data['use_purpose'] = '货运'
-            
+        
             # 添加选择的货车产品信息
             if hasattr(self, 'selected_truck_product') and self.selected_truck_product:
                 form_data['selected_product'] = self.selected_truck_product

@@ -59,12 +59,6 @@ class Core:
             
             # 通过进度回调传递错误信息到UI
             if self.state.progress_callback:
-                # 格式化详细错误信息
-                detailed_msg = f"步骤{step_number}: {step_name}失败\n"
-                detailed_msg += f"接口: {error_detail.get('api_path', '未知')}\n"
-                detailed_msg += f"错误码: {error_detail.get('error_code', '未知')}\n"
-                detailed_msg += f"错误信息: {error_detail.get('error_message', str(error))}"
-                
                 # 如果进度回调支持错误处理，传递详细信息
                 ui = None
                 
@@ -75,9 +69,13 @@ class Core:
                     ui = self.state.progress_callback.ui
                 
                 if ui and hasattr(ui, 'show_api_error'):
+                    # 使用CoreService的通用方法格式化错误信息
+                    error_message = error_detail.get('error_message', str(error))
+                    full_error_message = CoreService.format_api_error_with_details(error_message, error_detail)
+                    
                     ui.show_api_error(
                         f"步骤{step_number}: {step_name}", 
-                        error_detail.get('error_message', str(error)),
+                        full_error_message,
                         error_detail.get('error_code')
                     )
         

@@ -267,11 +267,61 @@ class CoreService:
         """格式化网络错误信息"""
         error_msg = str(error)
         if "Connection refused" in error_msg:
-            return f"网络连接失败: {operation} - 服务器拒绝连接"
+            return f"网络连接失败: {operation} - 无法连接到服务器"
         elif "timeout" in error_msg.lower():
-            return f"网络超时: {operation} - 请求超时"
+            return f"网络超时: {operation} - 请求超时，请检查网络连接"
+        elif "Name or service not known" in error_msg:
+            return f"域名解析失败: {operation} - 无法解析服务器地址"
         else:
             return f"网络错误: {operation} - {error_msg}"
+    
+    @staticmethod
+    def create_api_error_detail(api_path: str, url: str, error_code: str, error_message: str, 
+                               request_data: Any = None, response_data: Any = None) -> Dict[str, Any]:
+        """创建统一的API错误详情结构"""
+        return {
+            "api_path": api_path,
+            "url": url, 
+            "error_code": error_code,
+            "error_message": error_message,
+            "request_data": request_data,
+            "response_data": response_data
+        }
+    
+    @staticmethod
+    def format_api_error_with_details(error_message: str, error_detail: Dict[str, Any]) -> str:
+        """格式化包含详细调试信息的API错误消息"""
+        # 添加调试信息
+        debug_info = "\n\n" + "="*40 + "\n"
+        debug_info += "📋 API调用详情\n"
+        debug_info += "="*40 + "\n"
+        debug_info += f"🔹 API路径: {error_detail.get('api_path', '未知')}\n"
+        debug_info += f"🔹 请求URL: {error_detail.get('url', '未知')}\n"
+        debug_info += f"🔹 错误码: {error_detail.get('error_code', '未知')}\n"
+        
+        # 添加请求参数
+        request_data = error_detail.get('request_data')
+        if request_data:
+            debug_info += f"🔹 请求参数:\n"
+            import json
+            try:
+                formatted_request = json.dumps(request_data, ensure_ascii=False, indent=2)
+                debug_info += f"{formatted_request}\n"
+            except:
+                debug_info += f"{request_data}\n"
+        
+        # 添加响应结果
+        response_data = error_detail.get('response_data')
+        if response_data:
+            debug_info += f"🔹 响应结果:\n"
+            try:
+                formatted_response = json.dumps(response_data, ensure_ascii=False, indent=2)
+                debug_info += f"{formatted_response}\n"
+            except:
+                debug_info += f"{response_data}\n"
+        
+        # 组合完整的错误信息
+        return error_message + debug_info
     
     @staticmethod
     def handle_exception_with_context(context: str, error: Exception) -> Exception:

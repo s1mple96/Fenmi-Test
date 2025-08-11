@@ -4,14 +4,40 @@
 # -------------------------------------------------------------
 import logging
 import os
+import sys
 from datetime import datetime
+
+def get_log_dir():
+    """获取日志目录路径"""
+    if hasattr(sys, 'frozen') and sys.frozen:
+        # 打包后的exe环境 - 日志文件放在exe同目录的log文件夹
+        exe_dir = os.path.dirname(sys.executable)
+        log_dir = os.path.join(exe_dir, 'log')
+    else:
+        # 开发环境 - 日志文件放在项目根目录的log文件夹
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'log')
+    
+    # 确保日志目录存在
+    if not os.path.exists(log_dir):
+        try:
+            os.makedirs(log_dir)
+        except Exception as e:
+            print(f"创建日志目录失败: {e}")
+            # 如果无法创建日志目录，使用临时目录
+            import tempfile
+            log_dir = tempfile.gettempdir()
+    
+    return log_dir
 
 class LogUtil:
     # 日志目录和文件自动创建
-    LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'log')
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR)
+    LOG_DIR = get_log_dir()
     LOG_FILE = os.path.join(LOG_DIR, f"run_{datetime.now().strftime('%Y%m%d')}.log")
+
+    @staticmethod
+    def get_log_dir():
+        """获取日志目录路径"""
+        return get_log_dir()
 
     @staticmethod
     def get_logger(name: str = 'default'):

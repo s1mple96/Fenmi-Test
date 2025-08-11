@@ -70,9 +70,13 @@ class TruckCore:
                     ui = self.flow_state.progress_callback.ui
                 
                 if ui and hasattr(ui, 'show_api_error'):
+                    # 使用CoreService的通用方法格式化错误信息
+                    error_message = error_detail.get('error_message', str(error))
+                    full_error_message = CoreService.format_api_error_with_details(error_message, error_detail)
+                    
                     ui.show_api_error(
                         f"货车申办步骤{step_number}: {step_name}", 
-                        error_detail.get('error_message', str(error)),
+                        full_error_message,
                         error_detail.get('error_code')
                     )
         
@@ -84,6 +88,22 @@ class TruckCore:
         )
         self.log_service.error(error_msg)
         return error_msg
+    
+    def _handle_step_exception(self, step_number: int, step_name: str, e: Exception) -> tuple[bool, str]:
+        """统一处理步骤异常，返回详细错误信息"""
+        # 检查是否有详细的API错误信息
+        if hasattr(e, 'error_detail'):
+            error_detail = e.error_detail
+            error_message = error_detail.get('error_message', str(e))
+            
+            # 记录详细的错误信息到日志
+            self.log_service.error(f"步骤{step_number}详细错误: API路径={error_detail.get('api_path', '未知')}, "
+                                 f"错误码={error_detail.get('error_code', '未知')}, "
+                                 f"错误信息={error_message}")
+            
+            return (False, error_message)
+        else:
+            return (False, str(e))
     
     def run_full_truck_flow(self) -> Dict[str, Any]:
         """执行完整货车申办流程"""
@@ -188,21 +208,60 @@ class TruckCore:
                 # 使用具体的错误信息，如果没有则使用默认信息
                 error_msg = error_detail if error_detail else f"{step_number}.{step_name}失败"
                 
-                # 检查是否是API错误，如果是则创建详细的错误信息显示
-                if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
-                    ui = None
-                    
-                    # 尝试多种方式获取UI对象
-                    if hasattr(self.flow_state.progress_callback, '__self__'):
-                        ui = self.flow_state.progress_callback.__self__
-                    elif hasattr(self.flow_state.progress_callback, 'ui'):
-                        ui = self.flow_state.progress_callback.ui
-                    
-                    if ui and hasattr(ui, 'show_api_error'):
-                        ui.show_api_error(
-                            f"货车申办步骤{step_number}: {step_name}",
-                            error_detail if error_detail else "步骤执行失败，请检查参数或网络连接"
-                        )
+                # 检查是否包含业务错误信息，如果是则尝试显示详细错误
+                if error_detail and ("业务错误:" in error_detail or "注册日期有误" in error_detail or "行驶证初登日期" in error_detail):
+                    # 对于API业务错误，也显示详细错误信息
+                    if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
+                        ui = None
+                        
+                        # 尝试多种方式获取UI对象
+                        if hasattr(self.flow_state.progress_callback, '__self__'):
+                            ui = self.flow_state.progress_callback.__self__
+                        elif hasattr(self.flow_state.progress_callback, 'ui'):
+                            ui = self.flow_state.progress_callback.ui
+                        
+                        if ui and hasattr(ui, 'show_api_error'):
+                            # 尝试从最近的API调用中获取详细信息
+                            try:
+                                # 从API客户端的最后一次调用获取详细信息
+                                if hasattr(self.api_client, 'last_error_detail'):
+                                    error_detail_obj = self.api_client.last_error_detail
+                                    full_error_message = CoreService.format_api_error_with_details(
+                                        error_detail, error_detail_obj
+                                    )
+                                    ui.show_api_error(
+                                        f"货车申办步骤{step_number}: {step_name}",
+                                        full_error_message,
+                                        error_detail_obj.get('error_code')
+                                    )
+                                else:
+                                    # 如果没有详细信息，显示基本错误
+                                    ui.show_api_error(
+                                        f"货车申办步骤{step_number}: {step_name}",
+                                        error_detail
+                                    )
+                            except Exception:
+                                # 如果获取详细信息失败，显示基本错误
+                                ui.show_api_error(
+                                    f"货车申办步骤{step_number}: {step_name}",
+                                    error_detail
+                                )
+                else:
+                    # 对于非API错误，显示基本错误信息
+                    if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
+                        ui = None
+                        
+                        # 尝试多种方式获取UI对象
+                        if hasattr(self.flow_state.progress_callback, '__self__'):
+                            ui = self.flow_state.progress_callback.__self__
+                        elif hasattr(self.flow_state.progress_callback, 'ui'):
+                            ui = self.flow_state.progress_callback.ui
+                        
+                        if ui and hasattr(ui, 'show_api_error'):
+                            ui.show_api_error(
+                                f"货车申办步骤{step_number}: {step_name}",
+                                error_detail if error_detail else "步骤执行失败，请检查参数或网络连接"
+                            )
                 
                 self.flow_state.update_progress(
                     step_number, 
@@ -233,7 +292,7 @@ class TruckCore:
                 success = self._step1_update_wx_msg_template()
                 return (success, None if success else "更新微信消息模板失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "更新微信消息模板", e)
             
         elif step_number == 2:
             # 步骤2: 获取运营商列表
@@ -241,7 +300,7 @@ class TruckCore:
                 success = self._step2_get_operator_list()
                 return (success, None if success else "获取运营商列表失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "获取运营商列表", e)
             
         elif step_number == 3:
             # 步骤3: 根据运营商获取产品列表
@@ -249,7 +308,7 @@ class TruckCore:
                 success = self._step3_get_product_list_by_operator()
                 return (success, None if success else "获取产品列表失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "获取产品列表", e)
             
         elif step_number == 4:
             # 步骤4: 获取银行列表
@@ -257,7 +316,7 @@ class TruckCore:
                 success = self._step4_get_bank_list()
                 return (success, None if success else "获取银行列表失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "获取银行列表", e)
             
         elif step_number == 5:
             # 步骤5: 获取产品信息
@@ -265,7 +324,7 @@ class TruckCore:
                 success = self._step5_get_product_info()
                 return (success, None if success else "获取产品信息失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "获取产品信息", e)
             
         elif step_number == 6:
             # 步骤6: 校验车牌号信息
@@ -273,7 +332,7 @@ class TruckCore:
                 success = self._step6_check_plate_no_info()
                 return (success, None if success else "校验车牌号信息失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "校验车牌号信息", e)
             
         elif step_number == 7:
             # 步骤7: 检查是否可申办
@@ -281,7 +340,7 @@ class TruckCore:
                 success = self._step7_check_is_not_car_num()
                 return (success, None if success else "检查是否可申办失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "检查是否可申办", e)
             
         elif step_number == 8:
             # 步骤8: 检查渠道使用地址
@@ -289,7 +348,7 @@ class TruckCore:
                 success = self._step8_check_channel_use_address()
                 return (success, None if success else "检查渠道使用地址失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "检查渠道使用地址", e)
             
         elif step_number == 9:
             # 步骤9: 校验手机号
@@ -297,7 +356,7 @@ class TruckCore:
                 success = self._step9_check_phone()
                 return (success, None if success else "校验手机号失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "校验手机号", e)
             
         elif step_number == 10:
             # 步骤10: 身份证OCR识别（可选）
@@ -305,7 +364,7 @@ class TruckCore:
                 success = self._step10_ocr_identity_card()
                 return (success, None if success else "身份证OCR识别失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "身份证OCR识别", e)
             
         elif step_number == 11:
             # 步骤11: 行驶证OCR识别（可选）
@@ -313,7 +372,7 @@ class TruckCore:
                 success = self._step11_ocr_driver_license()
                 return (success, None if success else "行驶证OCR识别失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "行驶证OCR识别", e)
             
         elif step_number == 12:
             # 步骤12: 提交申办银行信息（关键步骤，获取申办ID）
@@ -321,13 +380,7 @@ class TruckCore:
                 success = self._step12_submit_apply_bank_info()
                 return (success, None if success else "提交申办银行信息失败")
             except Exception as e:
-                # 如果异常有详细错误信息，返回详细信息
-                if hasattr(e, 'error_detail'):
-                    error_detail = e.error_detail
-                    error_message = error_detail.get('error_message', str(e))
-                    return (False, error_message)
-                else:
-                    return (False, str(e))
+                return self._handle_step_exception(step_number, "提交申办银行信息", e)
             
         elif step_number == 13:
             # 步骤13: 交通违章查询（可选）
@@ -335,7 +388,7 @@ class TruckCore:
                 success = self._step13_traffic_query()
                 return (success, None if success else "交通违章查询失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "交通违章查询", e)
             
         elif step_number == 14:
             # 步骤14: 提交车辆信息
@@ -343,7 +396,7 @@ class TruckCore:
                 success = self._step14_submit_vehicle_info()
                 return (success, None if success else "提交车辆信息失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "提交车辆信息", e)
             
         elif step_number == 15:
             # 步骤15: 获取ETC申办信息
@@ -351,7 +404,7 @@ class TruckCore:
                 success = self._step15_get_etc_apply_info()
                 return (success, None if success else "获取ETC申办信息失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "获取ETC申办信息", e)
             
         elif step_number == 16:
             # 步骤16: 保存车辆视频信息（可选）
@@ -359,7 +412,7 @@ class TruckCore:
                 success = self._step16_save_car_video_info()
                 return (success, None if success else "保存车辆视频信息失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "保存车辆视频信息", e)
             
         elif step_number == 17:
             # 步骤17: 签发保险协议
@@ -367,7 +420,7 @@ class TruckCore:
                 success = self._step17_issue_insure_agreements()
                 return (success, None if success else "签发保险协议失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "签发保险协议", e)
             
         elif step_number == 18:
             # 步骤18: 查询绑定银行卡列表
@@ -375,7 +428,7 @@ class TruckCore:
                 success = self._step18_select_bind_bank_list()
                 return (success, None if success else "查询绑定银行卡列表失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "查询绑定银行卡列表", e)
             
         elif step_number == 19:
             # 步骤19: 快捷支付预存
@@ -383,7 +436,7 @@ class TruckCore:
                 success = self._step19_quick_pay_prestore()
                 return (success, None if success else "快捷支付预存失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "快捷支付预存", e)
             
         elif step_number == 20:
             # 步骤20: 提交OBU订单
@@ -391,7 +444,7 @@ class TruckCore:
                 success = self._step20_submit_obu_order()
                 return (success, None if success else "提交OBU订单失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "提交OBU订单", e)
             
         elif step_number == 21:
             # 步骤21: 流程完成
@@ -399,7 +452,7 @@ class TruckCore:
                 success = self._step21_flow_completed()
                 return (success, None if success else "流程完成失败")
             except Exception as e:
-                return (False, str(e))
+                return self._handle_step_exception(step_number, "流程完成", e)
             
         else:
             return (False, f"未知步骤号: {step_number}")
@@ -1171,8 +1224,9 @@ class TruckCore:
             return response.get('ret') == '1'
             
         except Exception as e:
+            # 不再简单记录日志，而是重新抛出异常，让上层处理详细错误信息
             self.log_service.error(f"提交OBU订单失败: {str(e)}")
-            return False
+            raise e  # 重新抛出异常，保持详细的错误信息结构
     
     def _step21_flow_completed(self) -> bool:
         """步骤21: 流程完成"""

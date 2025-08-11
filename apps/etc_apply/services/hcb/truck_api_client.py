@@ -25,11 +25,12 @@ class TruckApiClient:
         self.session.timeout = 30
         self.log_service = LogService("truck_api_client", log_file)
         self.cookies = cookies or {}
+        self.last_error_detail = None  # 保存最后一次的错误详情
         if self.cookies:
             self.session.cookies.update(self.cookies)
     
-    def post(self, path, data, headers=None, cookies=None, max_retries=1):
-        """统一的POST请求方法，默认不重试，并按JSON格式发送数据"""
+    def post(self, path, data, headers=None, cookies=None):
+        """统一的POST请求方法，发送JSON格式数据"""
         # 确保URL正确拼接
         if self.base_url.endswith('/'):
             if path.startswith('/'):
@@ -55,129 +56,115 @@ class TruckApiClient:
         
         self.log_service.log_api_request(path, data)
         
-        last_exception = None
-        for attempt in range(max_retries):
-            try:
-                # HCB接口发送JSON格式数据，但Content-Type为application/x-www-form-urlencoded
-                import json
-                # 确保所有字符串值都是有效的
-                cleaned_data = {}
-                for key, value in data.items():
-                    if isinstance(value, str):
-                        # 清理字符串，移除可能的特殊字符
-                        original_value = value
-                        cleaned_value = value.strip()
-                        
-                        # 检查字符串中是否有问题字符
-                        problem_chars = ['"', '\n', '\r', '\t', '\\']
-                        has_problem = any(char in cleaned_value for char in problem_chars)
-                        if has_problem:
-                            self.log_service.warning(f"🚨 字段 '{key}' 包含特殊字符: '{original_value}'")
-                            # 转义特殊字符
-                            cleaned_value = cleaned_value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
-                            self.log_service.info(f"🔧 字段 '{key}' 清理后: '{cleaned_value}'")
-                        
-                        if cleaned_value:
-                            cleaned_data[key] = cleaned_value
-                        else:
-                            self.log_service.warning(f"⚠️ 字段 '{key}' 清理后为空，原值: '{original_value}'")
+        try:
+            # HCB接口发送JSON格式数据，但Content-Type为application/x-www-form-urlencoded
+            import json
+            # 确保所有字符串值都是有效的
+            cleaned_data = {}
+            for key, value in data.items():
+                if isinstance(value, str):
+                    # 清理字符串，移除可能的特殊字符
+                    original_value = value
+                    cleaned_value = value.strip()
+                    
+                    # 检查字符串中是否有问题字符
+                    problem_chars = ['"', '\n', '\r', '\t', '\\']
+                    has_problem = any(char in cleaned_value for char in problem_chars)
+                    if has_problem:
+                        self.log_service.warning(f"🚨 字段 '{key}' 包含特殊字符: '{original_value}'")
+                        # 转义特殊字符
+                        cleaned_value = cleaned_value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+                        self.log_service.info(f"🔧 字段 '{key}' 清理后: '{cleaned_value}'")
+                    
+                    if cleaned_value:
+                        cleaned_data[key] = cleaned_value
                     else:
-                        cleaned_data[key] = value
-                
-                # 记录日志用的json字符串
-                json_data = json.dumps(cleaned_data, ensure_ascii=False, separators=(',', ':'))
-
-                # 调试：打印JSON数据长度和内容
-                self.log_service.info(f"发送JSON数据长度: {len(json_data)}")
-                self.log_service.info(f"发送JSON数据: {json_data}")
-                
-                # 验证JSON格式是否正确
-                try:
-                    json.loads(json_data)  # 验证JSON格式
-                    self.log_service.info("✅ JSON格式验证通过")
-                except json.JSONDecodeError as json_err:
-                    self.log_service.error(f"❌ JSON格式错误: {json_err}")
-                    self.log_service.error(f"❌ 原始数据: {data}")
-                    self.log_service.error(f"❌ 清理后数据: {cleaned_data}")
-                    raise Exception(f"JSON格式错误: {json_err}")
-
-                # 仍按表单方式发送纯JSON字符串，保持与后端兼容
-                self.log_service.info(f"🌐 发送POST请求到: {url}")
-                self.log_service.info(f"📤 请求头: {default_headers}")
-                self.log_service.info(f"📝 请求体类型: {type(json_data)} 长度: {len(json_data)}")
-                
-                # 明确设置Content-Length避免数据截断 - 关键：直接使用字节数据发送
-                json_bytes = json_data.encode('utf-8')
-                default_headers['Content-Length'] = str(len(json_bytes))
-                self.log_service.info(f"🔢 实际字节长度: {len(json_bytes)}, Content-Length: {default_headers['Content-Length']}")
-                
-                # 关键修复：直接发送字节数据而不是字符串，确保长度一致
-                self.log_service.info(f"📦 发送字节数据前10字节: {json_bytes[:10]}")
-                self.log_service.info(f"📦 发送字节数据后10字节: {json_bytes[-10:]}")
-                
-                resp = self.session.post(url, data=json_bytes, headers=default_headers, cookies=cookies)
-                resp.raise_for_status()
-                self.log_service.log_api_response(path, resp.text)
-                
-                try:
-                    response_data = resp.json()
-                    # HCB接口成功标志是ret="1"
-                    if response_data.get("ret") != "1":
-                        error_msg = response_data.get("msg") or f"业务错误: {response_data.get('ret')}"
-                        error_code = response_data.get("ret")
-                        
-                        # 如果是服务器异常，尝试重试
-                        if "服务器异常" in error_msg and attempt < max_retries - 1:
-                            self.log_service.warning(f"{path} 服务器异常，第{attempt + 1}次重试...")
-                            import time
-                            time.sleep(2)  # 等待2秒后重试
-                            continue
-                        
-                        # 记录详细错误信息
-                        self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {error_code} | 错误信息: {error_msg}")
-                        
-                        # 创建结构化异常信息
-                        error_detail = {
-                            "api_path": path,
-                            "url": url,
-                            "error_code": error_code,
-                            "error_message": error_msg,
-                            "response_data": response_data
-                        }
-                        
-                        # 立即抛出异常，不再重试
-                        exception = Exception(f"业务错误: {error_msg}")
-                        exception.error_detail = error_detail
-                        raise exception
-                    return response_data
-                except Exception as e:
-                    if "业务错误" not in str(e):
-                        self.log_service.error(f"接口返回内容不是JSON: {resp.text}")
-                        raise Exception(f"接口响应格式错误: {path} - 返回内容不是有效的JSON格式")
-                    raise e
-            except Exception as e:
-                last_exception = e
-                self.log_service.error(f"❌ 网络请求异常: {type(e).__name__}: {str(e)}")
-                self.log_service.error(f"❌ 请求URL: {url}")
-                self.log_service.error(f"❌ 发送数据长度: {len(json_data)}")
-                
-                if "Connection refused" in str(e) or "timeout" in str(e).lower():
-                    error_msg = CoreService.format_network_error(path, e)
+                        self.log_service.warning(f"⚠️ 字段 '{key}' 清理后为空，原值: '{original_value}'")
                 else:
-                    error_msg = CoreService.handle_exception_with_context(path, e)
-                
-                # 如果是网络错误且还有重试次数，则重试
-                if ("Connection refused" in str(e) or "timeout" in str(e).lower()) and attempt < max_retries - 1:
-                    self.log_service.warning(f"{path} 网络错误，第{attempt + 1}次重试...")
-                    import time
-                    time.sleep(2)  # 等待2秒后重试
-                    continue
-                
-                self.log_service.log_api_error(path, data, e)
-                break
-        
-        # 所有重试都失败了
-        raise Exception(f"请求失败，已重试{max_retries}次: {str(last_exception)}")
+                    cleaned_data[key] = value
+            
+            # 记录日志用的json字符串
+            json_data = json.dumps(cleaned_data, ensure_ascii=False, separators=(',', ':'))
+
+            # 调试：打印JSON数据长度和内容
+            self.log_service.info(f"发送JSON数据长度: {len(json_data)}")
+            self.log_service.info(f"发送JSON数据: {json_data}")
+            
+            # 验证JSON格式是否正确
+            try:
+                json.loads(json_data)  # 验证JSON格式
+                self.log_service.info("✅ JSON格式验证通过")
+            except json.JSONDecodeError as json_err:
+                self.log_service.error(f"❌ JSON格式错误: {json_err}")
+                self.log_service.error(f"❌ 原始数据: {data}")
+                self.log_service.error(f"❌ 清理后数据: {cleaned_data}")
+                raise Exception(f"JSON格式错误: {json_err}")
+
+            # 仍按表单方式发送纯JSON字符串，保持与后端兼容
+            self.log_service.info(f"🌐 发送POST请求到: {url}")
+            self.log_service.info(f"📤 请求头: {default_headers}")
+            self.log_service.info(f"📝 请求体类型: {type(json_data)} 长度: {len(json_data)}")
+            
+            # 明确设置Content-Length避免数据截断 - 关键：直接使用字节数据发送
+            json_bytes = json_data.encode('utf-8')
+            default_headers['Content-Length'] = str(len(json_bytes))
+            self.log_service.info(f"🔢 实际字节长度: {len(json_bytes)}, Content-Length: {default_headers['Content-Length']}")
+            
+            # 关键修复：直接发送字节数据而不是字符串，确保长度一致
+            self.log_service.info(f"📦 发送字节数据前10字节: {json_bytes[:10]}")
+            self.log_service.info(f"📦 发送字节数据后10字节: {json_bytes[-10:]}")
+            
+            resp = self.session.post(url, data=json_bytes, headers=default_headers, cookies=cookies)
+            resp.raise_for_status()
+            self.log_service.log_api_response(path, resp.text)
+            
+            try:
+                response_data = resp.json()
+                # HCB接口成功标志是ret="1"
+                if response_data.get("ret") != "1":
+                    error_msg = response_data.get("msg") or f"业务错误: {response_data.get('ret')}"
+                    error_code = response_data.get("ret")
+                    
+                    # 记录详细错误信息
+                    self.log_service.error(f"{path} 调用失败 | URL: {url} | 错误码: {error_code} | 错误信息: {error_msg}")
+                    
+                    # 创建结构化异常信息
+                    error_detail = CoreService.create_api_error_detail(
+                        api_path=path,
+                        url=url,
+                        error_code=error_code,
+                        error_message=error_msg,
+                        request_data=cleaned_data,
+                        response_data=response_data
+                    )
+                    
+                    # 保存错误详情，供后续错误处理使用
+                    self.last_error_detail = error_detail
+                    
+                    # 立即抛出异常
+                    exception = Exception(f"业务错误: {error_msg}")
+                    exception.error_detail = error_detail
+                    raise exception
+                return response_data
+            except Exception as e:
+                if hasattr(e, 'error_detail'):
+                    # 如果是我们创建的业务异常，直接重新抛出
+                    raise e
+                else:
+                    # JSON解析异常或其他异常
+                    self.log_service.error(f"{path} 响应解析失败: {str(e)}")
+                    raise Exception(f"响应解析失败: {str(e)}")
+                    
+        except requests.exceptions.RequestException as e:
+            self.log_service.error(f"{path} 网络请求失败: {str(e)}")
+            raise Exception(f"网络请求失败: {str(e)}")
+        except Exception as e:
+            # 如果异常已经有error_detail，直接重新抛出
+            if hasattr(e, 'error_detail'):
+                raise e
+            else:
+                self.log_service.error(f"{path} 请求异常: {str(e)}")
+                raise Exception(f"请求异常: {str(e)}")
     
     # ==================== 货车流程专用接口 ====================
     
