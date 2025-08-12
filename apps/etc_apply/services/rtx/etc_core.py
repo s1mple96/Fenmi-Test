@@ -274,6 +274,8 @@ class Core:
             if not car_num:
                 raise ValueError("step13缺少车牌号参数，请检查车牌信息是否完整")
             
+            # 注释掉原来的设备号生成，现在在insert_device_stock中生成
+            """
             # 生成设备号
             obu_no = DataFactory.random_obn_number()
             etc_sn = DataFactory.random_etc_number()
@@ -283,11 +285,54 @@ class Core:
             self.params['obu_no'] = obu_no
             self.params['etc_sn'] = etc_sn
             self.params['activation_time'] = activation_time
+            """
             
             # 先插入设备库存数据
-            device_result = DataService.insert_device_stock(car_num)
+            operator_id = self.params.get('operatorId')  # 获取运营商ID
+            # 尝试获取运营商名称（客车申办场景下运营商名称通常在产品信息中）
+            operator_name = self.params.get('operatorName') or self.params.get('operator_name')
+            # 尝试获取运营商编码（客车的精确匹配优先选择）
+            operator_code = self.params.get('operatorCode') or self.params.get('operator_code')
             
-            # 设置入库参数
+            # 如果没有运营商编码，尝试从选择的产品中获取
+            if not operator_code:
+                selected_product = self.params.get('selected_product')
+                if selected_product:
+                    operator_code = selected_product.get('operator_code')
+                    print(f"[INFO] 从选择的产品获取运营商编码: {operator_code}")
+            
+            # 如果没有运营商名称，尝试从选择的产品中获取
+            if not operator_name:
+                # 尝试从选择的产品信息中获取运营商名称
+                selected_product = self.params.get('selected_product')
+                if selected_product:
+                    operator_name = CoreService.get_operator_name_from_product(selected_product)
+                    print(f"[INFO] 从选择的产品获取运营商名称: {operator_name}")
+            
+            # 如果还是没有运营商名称，尝试从运营商ID映射获取
+            if not operator_name and operator_id:
+                operator_name = CoreService._get_operator_name_by_id(operator_id)
+                print(f"[INFO] 从运营商ID映射获取运营商名称: {operator_name}")
+            
+            device_result = DataService.insert_device_stock(car_num, operator_id, operator_name, operator_code)
+            
+            # 从device_result中获取生成的设备号，保存到params中供step14使用
+            if device_result:
+                obu_no = device_result.get('obn_no')  # insert_device_stock返回的是obn_no
+                etc_sn = device_result.get('etc_no')   # insert_device_stock返回的是etc_no
+                activation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # 保存到params中，供step14使用
+                self.params['obu_no'] = obu_no
+                self.params['etc_sn'] = etc_sn
+                self.params['activation_time'] = activation_time
+                
+                print(f"[INFO] 设备号已保存: OBU={obu_no}, ETC={etc_sn}")
+            
+            # 注释掉原有的重复入库流程，避免覆盖我们的精确匹配结果
+            # 原有的run_stock_in_flow会使用固定的CARD_OPERATORS规则，会覆盖我们的精确匹配
+            """
+            # 设置入库参数  
             dbname = "hcb"
             table = "hcb_newstock"
             obu_fields = ["NEWSTOCK_ID", "CARD_OPERATORS", "STATUS", "CAR_NUM", "STOCK_STATUS", "SOURCE", "REMARK", "CREATE_TIME", "DEVICE_CATEGORY", "INTERNAL_DEVICE_NO", "EXTERNAL_DEVICE_NO", "TYPE"]
@@ -302,6 +347,9 @@ class Core:
             # 执行入库流程
             config = CoreService.get_hcb_mysql_config()
             DataService.run_stock_in_flow(config, dbname, table, obu_fields, obu_types, obu_rules, 1, obu_extras, None)
+            """
+            
+            print(f"[INFO] step13设备入库完成，使用精确匹配的运营商代码")
             
             self._update_progress(13, StepManager.format_step_message(13))
         except Exception as e:

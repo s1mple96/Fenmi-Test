@@ -218,6 +218,555 @@ class CoreService:
         vehicle_colors = CoreService.get_vehicle_colors()
         return vehicle_colors.get(color_name, 0)
     
+    # ==================== 设备运营商管理 ====================
+    
+    @staticmethod
+    def get_device_operator_code_by_name(operator_name: str, device_type: str = "0") -> str:
+        """
+        根据运营商名称获取设备运营商代码（模糊匹配）
+        :param operator_name: 运营商名称（如：江苏苏通卡、广东粤通卡等）
+        :param device_type: 设备类型 "0"=OBU, "1"=ETC
+        :return: 设备运营商代码
+        """
+        try:
+            from common.mysql_util import MySQLUtil
+            import re
+            
+            # 获取数据库配置
+            mysql_conf = CoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**mysql_conf)
+            db.connect()
+            
+            # 根据设备类型选择不同的字典父ID
+            # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+            if device_type == "1":  # TYPE=1 是 OBU
+                parent_id = "8fc26605b4df45119c87db730dc8f81f"
+                device_name = "OBU"
+            else:  # TYPE=0 是 ETC (device_type == "0")
+                parent_id = "d55a901aafa24cc8b73e6f140278dc10"
+                device_name = "ETC"
+            
+            # 查询该设备类型下的所有运营商代码
+            sql = """
+            SELECT NAME, NAME_EN 
+            FROM hcb.sys_dictionaries t 
+            WHERE PARENT_ID = %s
+            """
+            rows = db.query(sql, (parent_id,))
+            db.close()
+            
+            if not rows:
+                CoreService._log_warning(f"未找到{device_name}运营商代码，使用默认值")
+                # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+                return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
+            
+            # 提取运营商名称中的关键词进行匹配
+            match_keywords = CoreService._extract_operator_keywords(operator_name)
+            CoreService._log_info(f"从运营商名称 '{operator_name}' 提取关键词: {match_keywords}")
+            
+            # 尝试模糊匹配
+            matched_operators = []
+            for row in rows:
+                device_operator_name = row.get('NAME', '')
+                # 检查是否包含关键词
+                for keyword in match_keywords:
+                    if keyword in device_operator_name:
+                        matched_operators.append(row)
+                        CoreService._log_info(f"匹配到{device_name}运营商: {device_operator_name} (关键词: {keyword})")
+                        break
+            
+            if matched_operators:
+                # 如果有匹配的运营商，随机选择一个
+                import random
+                selected_operator = random.choice(matched_operators)
+                operator_code = selected_operator.get('NAME_EN', '1')
+                operator_name_matched = selected_operator.get('NAME', '未知运营商')
+                CoreService._log_info(f"为{device_name}选择匹配的运营商: {operator_name_matched} (代码: {operator_code})")
+                return operator_code
+            else:
+                # 如果没有匹配的，随机选择一个
+                import random
+                selected_operator = random.choice(rows)
+                operator_code = selected_operator.get('NAME_EN', '1')
+                operator_name_random = selected_operator.get('NAME', '未知运营商')
+                CoreService._log_warning(f"未找到匹配的{device_name}运营商，随机选择: {operator_name_random} (代码: {operator_code})")
+                return operator_code
+            
+        except Exception as e:
+            CoreService._log_error(f"获取设备运营商代码失败: {str(e)}")
+            # 返回默认值
+            # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+            return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
+    
+    @staticmethod
+    def _extract_operator_keywords(operator_name: str) -> list:
+        """
+        从运营商名称中提取关键词用于匹配
+        :param operator_name: 运营商名称
+        :return: 关键词列表
+        """
+        if not operator_name:
+            return []
+        
+        # 省份简称到全称的映射
+        province_mapping = {
+            '苏': ['江苏', '苏'],
+            '粤': ['广东', '粤'],
+            '京': ['北京', '京'],
+            '沪': ['上海', '沪'],
+            '津': ['天津', '津'],
+            '渝': ['重庆', '渝'],
+            '冀': ['河北', '冀'],
+            '豫': ['河南', '豫'],
+            '云': ['云南', '云'],
+            '辽': ['辽宁', '辽'],
+            '黑': ['黑龙江', '黑'],
+            '湘': ['湖南', '湘'],
+            '皖': ['安徽', '皖'],
+            '鲁': ['山东', '鲁'],
+            '新': ['新疆', '新'],
+            '浙': ['浙江', '浙'],
+            '赣': ['江西', '赣'],
+            '鄂': ['湖北', '鄂'],
+            '桂': ['广西', '桂'],
+            '甘': ['甘肃', '甘'],
+            '晋': ['山西', '晋'],
+            '蒙': ['内蒙古', '蒙'],
+            '陕': ['陕西', '陕'],
+            '吉': ['吉林', '吉'],
+            '闽': ['福建', '闽'],
+            '贵': ['贵州', '贵'],
+            '青': ['青海', '青'],
+            '藏': ['西藏', '藏'],
+            '川': ['四川', '川'],
+            '宁': ['宁夏', '宁'],
+            '琼': ['海南', '琼']
+        }
+        
+        keywords = []
+        
+        # 直接包含的关键词
+        keywords.append(operator_name)
+        
+        # 检查是否包含省份信息
+        for abbr, full_names in province_mapping.items():
+            for full_name in full_names:
+                if full_name in operator_name or abbr in operator_name:
+                    keywords.extend(full_names)
+                    break
+        
+        # 移除重复项
+        keywords = list(set(keywords))
+        
+        return keywords
+    
+    @staticmethod
+    def get_device_operator_codes_by_operator_name(operator_name: str) -> Dict[str, str]:
+        """
+        根据产品运营商名称获取对应的OBU和ETC运营商代码
+        :param operator_name: 产品运营商名称
+        :return: {'obu_code': 'xx', 'etc_code': 'xx'}
+        """
+        try:
+            obu_code = CoreService.get_device_operator_code_by_name(operator_name, "0")
+            etc_code = CoreService.get_device_operator_code_by_name(operator_name, "1")
+            
+            return {
+                'obu_code': obu_code,
+                'etc_code': etc_code
+            }
+        except Exception as e:
+            CoreService._log_error(f"获取设备运营商代码失败: {str(e)}")
+            return {
+                'obu_code': "1",
+                'etc_code': "10"
+            }
+    
+    @staticmethod
+    def get_device_operator_code(operator_id: str, device_type: str = "0") -> str:
+        """
+        根据运营商ID获取设备运营商代码（向后兼容方法）
+        :param operator_id: 运营商ID 
+        :param device_type: 设备类型 "0"=OBU, "1"=ETC
+        :return: 设备运营商代码
+        """
+        # 这里需要通过运营商ID获取运营商名称，然后调用新的方法
+        try:
+            operator_name = CoreService._get_operator_name_by_id(operator_id)
+            if operator_name:
+                return CoreService.get_device_operator_code_by_name(operator_name, device_type)
+            else:
+                # 如果无法获取运营商名称，使用随机方式
+                return CoreService.get_device_operator_code_by_name("", device_type)
+        except Exception as e:
+            CoreService._log_error(f"通过ID获取设备运营商代码失败: {str(e)}")
+            # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+            return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
+    
+    @staticmethod
+    def _get_operator_name_by_id(operator_id: str) -> str:
+        """
+        根据运营商ID获取运营商名称
+        :param operator_id: 运营商ID
+        :return: 运营商名称
+        """
+        try:
+            # 运营商ID映射（主要用于货车）
+            operator_id_mapping = {
+                '717830e1c3a948709ec0a92b44400c60': '江苏苏通卡',
+                # 可以添加更多运营商ID映射
+            }
+            
+            return operator_id_mapping.get(operator_id, '')
+        except Exception as e:
+            CoreService._log_error(f"获取运营商名称失败: {str(e)}")
+            return ""
+    
+    @staticmethod
+    def _get_operator_name_by_code(operator_code: str) -> str:
+        """
+        根据运营商代码获取运营商名称（主要用于客车）
+        :param operator_code: 运营商代码（如：TXB、LTK等）
+        :return: 运营商名称
+        """
+        try:
+            # 客车运营商代码映射
+            operator_code_mapping = {
+                'TXB': '江苏苏通卡',
+                'LTK': '黑龙江龙通卡', 
+                'MTK': '内蒙古蒙通卡',
+                'XTK': '湖南湘通卡',
+                'YTK': '广东粤通卡',
+                'BTK': '北京速通科技',
+                'STK': '上海ETC',
+                'ZTK': '浙江ETC',
+                'CTK': '四川ETC',
+                'HTK': '河北ETC',
+                'ATK': '安徽ETC',
+                'FTK': '福建ETC',
+                'GTK': '广西ETC',
+                'GZTK': '贵州ETC',
+                'HNTK': '河南ETC',
+                'HBTK': '湖北ETC',
+                'JTK': '江西ETC',
+                'JLTK': '吉林ETC',
+                'LNTK': '辽宁ETC',
+                'NTK': '宁夏ETC',
+                'QTK': '青海ETC',
+                'SXTK': '山西ETC',
+                'SDTK': '山东ETC',
+                'SCTK': '陕西ETC',
+                'TTK': '天津ETC',
+                'XJTK': '新疆ETC',
+                'XZTK': '西藏ETC',
+                'YNTK': '云南ETC',
+                'CQTK': '重庆ETC',
+                'HNTK': '海南ETC'
+            }
+            
+            return operator_code_mapping.get(operator_code, '')
+        except Exception as e:
+            CoreService._log_error(f"通过代码获取运营商名称失败: {str(e)}")
+            return ""
+    
+    @staticmethod
+    def get_operator_name_from_product(product_data: Dict[str, Any]) -> str:
+        """
+        从产品数据中获取运营商名称
+        :param product_data: 产品数据
+        :return: 运营商名称
+        """
+        try:
+            # 优先从OPERATOR_NAME获取（货车产品）
+            if 'OPERATOR_NAME' in product_data:
+                return product_data['OPERATOR_NAME']
+            
+            # 从operator_code获取（客车产品）
+            if 'operator_code' in product_data:
+                return CoreService._get_operator_name_by_code(product_data['operator_code'])
+            
+            # 从OPERATOR_ID获取（备用）
+            if 'OPERATOR_ID' in product_data:
+                return CoreService._get_operator_name_by_id(product_data['OPERATOR_ID'])
+            
+            return ''
+        except Exception as e:
+            CoreService._log_error(f"从产品数据获取运营商名称失败: {str(e)}")
+            return ""
+    
+    @staticmethod
+    def get_device_operator_codes_by_product(operator_id: str) -> Dict[str, str]:
+        """
+        根据产品运营商ID获取对应的OBU和ETC运营商代码（向后兼容方法）
+        :param operator_id: 产品运营商ID
+        :return: {'obu_code': 'xx', 'etc_code': 'xx'}
+        """
+        try:
+            operator_name = CoreService._get_operator_name_by_id(operator_id)
+            if operator_name:
+                return CoreService.get_device_operator_codes_by_operator_name(operator_name)
+            else:
+                # 如果无法获取运营商名称，使用随机方式
+                obu_code = CoreService.get_device_operator_code_by_name("", "0")
+                etc_code = CoreService.get_device_operator_code_by_name("", "1")
+                return {
+                    'obu_code': obu_code,
+                    'etc_code': etc_code
+                }
+        except Exception as e:
+            CoreService._log_error(f"获取设备运营商代码失败: {str(e)}")
+            return {
+                'obu_code': "1",
+                'etc_code': "10"
+            }
+    
+    @staticmethod
+    def get_device_operator_code_by_operator_code(operator_code: str, device_type: str = "0") -> str:
+        """
+        根据运营商编码精确获取设备运营商代码 - 使用BZ字段精确匹配
+        :param operator_code: 运营商编码（如：XTK、MTK、LTK等）
+        :param device_type: 设备类型 "0"=OBU, "1"=ETC
+        :return: 设备运营商代码
+        """
+        try:
+            from common.mysql_util import MySQLUtil
+            
+            # 获取数据库配置
+            conf = CoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 根据设备类型选择不同的字典父ID
+            # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+            if device_type == "1":  # TYPE=1 是 OBU
+                parent_id = "8fc26605b4df45119c87db730dc8f81f"
+            else:  # TYPE=0 是 ETC (device_type == "0")
+                parent_id = "d55a901aafa24cc8b73e6f140278dc10"
+            
+            # 💡 使用BZ字段进行精确匹配（新的精确方法）
+            query = """
+                SELECT NAME, NAME_EN, BZ 
+                FROM hcb.sys_dictionaries 
+                WHERE PARENT_ID = %s AND BZ = %s
+                LIMIT 1
+            """
+            result = db.query(query, (parent_id, operator_code))
+            db.close()
+            
+            if result and len(result) > 0:
+                operator_info = result[0]
+                name_en = operator_info.get('NAME_EN', '1')
+                name = operator_info.get('NAME', '未知')
+                
+                CoreService._log_info(f"✅ BZ字段精确匹配成功: {operator_code} → {name} (代码: {name_en})")
+                return name_en
+            else:
+                CoreService._log_warning(f"⚠️ BZ字段精确匹配失败，尝试省份模糊匹配: {operator_code}")
+                
+                # 如果BZ字段匹配失败，回退到原有的省份匹配方法
+                code_to_province = {
+                    "XTK": "湖南", "MTK": "内蒙古", "LTK": "黑龙江", "CTK": "四川",
+                    "TXB": "江苏", "YTK": "广东", "ETK": "浙江", "ZTK": "山东",
+                    "HTK": "河南", "BTK": "北京", "STK": "上海", "TTK": "天津"
+                }
+                
+                province = code_to_province.get(operator_code)
+                if not province:
+                    CoreService._log_warning(f"未知运营商编码: {operator_code}")
+                    return "1"
+                
+                # 构建目标设备运营商名称
+                # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+                device_suffix = "OBU" if device_type == "1" else "ETC"
+                target_name = f"{province}{device_suffix}"
+                CoreService._log_info(f"运营商编码 {operator_code} → 省份 {province} → 目标设备运营商 {target_name}")
+                
+                # 查询数据库中的设备运营商
+                query_fallback = """
+                    SELECT NAME, NAME_EN, BZ 
+                    FROM hcb.sys_dictionaries 
+                    WHERE PARENT_ID = %s AND NAME LIKE %s
+                    LIMIT 1
+                """
+                db = MySQLUtil(**conf)
+                db.connect()
+                result_fallback = db.query(query_fallback, (parent_id, f"%{province}%"))
+                db.close()
+                
+                if result_fallback and len(result_fallback) > 0:
+                    operator_info = result_fallback[0]
+                    name_en = operator_info.get('NAME_EN', '1')
+                    name = operator_info.get('NAME', '未知')
+                    
+                    CoreService._log_info(f"✅ 省份模糊匹配成功: {operator_code} → {name} (代码: {name_en})")
+                    return name_en
+                else:
+                    CoreService._log_error(f"❌ 省份模糊匹配也失败: {operator_code}")
+                    return "1"
+                
+        except Exception as e:
+            CoreService._log_error(f"通过运营商编码获取设备运营商代码失败: {str(e)}")
+            return "1"
+    
+    @staticmethod
+    def get_device_operator_codes_by_operator_code(operator_code: str) -> Dict[str, str]:
+        """
+        根据运营商编码获取OBU和ETC运营商代码
+        :param operator_code: 运营商编码（如：XTK、MTK等）
+        :return: {'obu_code': 'xx', 'etc_code': 'xx'}
+        """
+        try:
+            obu_code = CoreService.get_device_operator_code_by_operator_code(operator_code, "0")
+            etc_code = CoreService.get_device_operator_code_by_operator_code(operator_code, "1")
+            
+            return {
+                'obu_code': obu_code,
+                'etc_code': etc_code
+            }
+        except Exception as e:
+            CoreService._log_error(f"通过运营商编码获取设备运营商代码失败: {str(e)}")
+            return {'obu_code': '1', 'etc_code': '10'}
+
+    # ==================== 设备运营商名称反向查询 ====================
+    
+    @staticmethod
+    def get_operator_name_by_card_operators(card_operators: str, device_type: str = "0") -> str:
+        """
+        根据CARD_OPERATORS字段值反向查询运营商名称 - 增强显示BZ字段信息
+        :param card_operators: CARD_OPERATORS字段值（如："6", "8"）
+        :param device_type: 设备类型 "0"=OBU, "1"=ETC
+        :return: 运营商名称（如："内蒙古OBU [MTK]", "内蒙古ETC [MTK]"）
+        """
+        try:
+            from common.mysql_util import MySQLUtil
+            
+            # 获取数据库配置
+            conf = CoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 根据设备类型选择不同的字典父ID
+            # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+            if device_type == "1":  # TYPE=1 是 OBU
+                parent_id = "8fc26605b4df45119c87db730dc8f81f"
+            else:  # TYPE=0 是 ETC (device_type == "0")
+                parent_id = "d55a901aafa24cc8b73e6f140278dc10"
+            
+            # 查询对应的运营商名称和BZ字段
+            query = """
+                SELECT NAME, NAME_EN, BZ 
+                FROM hcb.sys_dictionaries 
+                WHERE PARENT_ID = %s AND NAME_EN = %s
+                LIMIT 1
+            """
+            result = db.query(query, (parent_id, card_operators))
+            db.close()
+            
+            if result and len(result) > 0:
+                operator_info = result[0]
+                name = operator_info.get('NAME', f'未知运营商')
+                bz = operator_info.get('BZ', '')
+                
+                # 如果有BZ字段，在运营商名称后加上编码显示
+                if bz:
+                    return f"{name} [{bz}]"
+                else:
+                    return name
+            else:
+                return f'未知运营商(代码:{card_operators})'
+            
+        except Exception as e:
+            CoreService._log_error(f"根据CARD_OPERATORS查询运营商名称失败: {str(e)}")
+            return f'查询失败(代码:{card_operators})'
+    
+    @staticmethod
+    def get_device_info_with_operator_names(devices: list) -> list:
+        """
+        为设备列表添加运营商名称信息
+        :param devices: 设备信息列表（包含CARD_OPERATORS和TYPE字段）
+        :return: 添加了运营商名称的设备列表
+        """
+        try:
+            result_devices = []
+            
+            for device in devices:
+                device_copy = device.copy()
+                card_operators = device.get('CARD_OPERATORS', '')
+                device_type = device.get('TYPE', '0')
+                
+                # 获取运营商名称
+                operator_name = CoreService.get_operator_name_by_card_operators(card_operators, device_type)
+                device_copy['设备运营商'] = operator_name
+                
+                # 添加设备类型显示名称
+                # 🔥 重要修正：根据数据库DDL，TYPE字段：0=ETC, 1=OBU
+                device_copy['设备类型'] = 'OBU' if device_type == '1' else 'ETC'
+                
+                result_devices.append(device_copy)
+            
+            return result_devices
+            
+        except Exception as e:
+            CoreService._log_error(f"添加运营商名称信息失败: {str(e)}")
+            return devices
+
+    # ==================== 设备查询服务 ====================
+    
+    @staticmethod
+    def query_devices_by_car_num(car_num: str) -> list:
+        """
+        根据车牌号查询设备信息
+        :param car_num: 车牌号
+        :return: 设备信息列表（包含运营商名称）
+        """
+        try:
+            from common.mysql_util import MySQLUtil
+            
+            # 获取数据库配置
+            conf = CoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 查询设备信息
+            query = """
+                SELECT NEWSTOCK_ID, INTERNAL_DEVICE_NO, EXTERNAL_DEVICE_NO, 
+                       TYPE, CARD_OPERATORS, STATUS, CREATE_TIME, CAR_NUM,
+                       STOCK_STATUS, SOURCE, REMARK
+                FROM hcb.hcb_newstock 
+                WHERE CAR_NUM = %s
+                ORDER BY CREATE_TIME DESC
+            """
+            devices = db.query(query, (car_num,))
+            db.close()
+            
+            # 添加运营商名称信息
+            if devices:
+                devices_with_names = CoreService.get_device_info_with_operator_names(devices)
+                print(f"[INFO] 查询到车牌 {car_num} 的设备信息 {len(devices_with_names)} 条")
+                return devices_with_names
+            else:
+                print(f"[INFO] 未找到车牌 {car_num} 的设备信息")
+                return []
+            
+        except Exception as e:
+            CoreService._log_error(f"查询设备信息失败: {str(e)}")
+            return []
+    
+    @staticmethod
+    def _log_info(message: str):
+        """记录信息日志"""
+        print(f"[INFO] {message}")
+    
+    @staticmethod
+    def _log_warning(message: str):
+        """记录警告日志"""
+        print(f"[WARNING] {message}")
+    
+    @staticmethod
+    def _log_error(message: str):
+        """记录错误日志"""
+        print(f"[ERROR] {message}")
+
     # ==================== 错误处理 ====================
     
     @staticmethod

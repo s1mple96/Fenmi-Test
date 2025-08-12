@@ -1255,10 +1255,25 @@ class TruckCore:
                 
                 # 插入设备库存数据（关键步骤）
                 try:
+                    # 获取运营商ID和名称
+                    operator_id = self.params.get('operatorId')
+                    operator_name = self.params.get('operatorName') or self.params.get('operator_name')
+                    
+                    # 如果没有运营商名称，尝试从已选择的运营商对象中获取
+                    if not operator_name and hasattr(self, 'selected_operator') and self.selected_operator:
+                        operator_name = self.selected_operator.get('name')
+                    
+                    # 如果还是没有，尝试从运营商ID映射获取
+                    if not operator_name and operator_id:
+                        from apps.etc_apply.services.rtx.core_service import CoreService
+                        operator_name = CoreService._get_operator_name_by_id(operator_id)
+                    
                     stock_result = TruckDataService.insert_truck_device_stock(
                         car_num, 
                         result['etc_sn'], 
-                        result['obu_no']
+                        result['obu_no'],
+                        operator_id,   # 运营商ID
+                        operator_name  # 运营商名称
                     )
                     self.log_service.info(f"✅ 已插入设备库存数据:")
                     self.log_service.info(f"   - OBU库存ID: {stock_result['obu_stock_id']}")

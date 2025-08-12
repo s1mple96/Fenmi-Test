@@ -217,22 +217,38 @@ class UIEventManager:
             QMessageBox.critical(ui, "错误", f"保存失败: {str(e)}")
     
     def handle_select_product(self, ui) -> None:
-        """处理产品选择事件"""
+        """处理客车产品选择事件"""
         try:
+            from apps.etc_apply.ui.rtx.ui_component import ProductSelectDialog
             dlg = ProductSelectDialog(ui)
             if dlg.exec_() == dlg.Accepted and dlg.selected_product:
                 selected_product = dlg.selected_product
                 ui.product_edit.setText(selected_product.get('product_name', ''))
                 ui.selected_product = selected_product
                 
-                product_id = selected_product.get('product_id')
-                product_name = selected_product.get('product_name')
-                operator_code = selected_product.get('operator_code')
+                # 保存运营商信息（客车版本）
+                operator_code = selected_product.get('operator_code', '')
+                if operator_code:
+                    # 通过运营商代码获取运营商名称
+                    from apps.etc_apply.services.rtx.core_service import CoreService
+                    operator_name = CoreService._get_operator_name_by_code(operator_code)
+                    
+                    # 保存完整的运营商信息
+                    selected_product['operator_name'] = operator_name
+                    selected_product['OPERATOR_NAME'] = operator_name  # 兼容货车格式
+                    selected_product['operator_code'] = operator_code  # 确保编码被保存
+                    selected_product['OPERATOR_CODE'] = operator_code  # 兼容格式
+                    
+                    product_id = selected_product.get('product_id')
+                    product_name = selected_product.get('product_name')
+                    
+                    self.log_service.info(f"选择客车产品: {product_name} (ID: {product_id}, 运营商: {operator_name} ({operator_code}))")
+                    
+                    if hasattr(ui, 'log_text'):
+                        ui.log_text.append(f"已选择客车产品: {product_name} (ID: {product_id}, 运营商: {operator_name} [{operator_code}])")
+                else:
+                    self.log_service.warning("客车产品选择成功，但未找到运营商代码")
                 
-                self.log_service.info(f"选择产品: {product_name} (ID: {product_id}, 运营商: {operator_code})")
-                
-                if hasattr(ui, 'log_text'):
-                    ui.log_text.append(f"已选择产品: {product_name} (ID: {product_id}, 运营商: {operator_code})")
         except Exception as e:
             self.log_service.error(f"产品选择失败: {e}")
             QMessageBox.critical(ui, "错误", f"产品选择失败: {e}")

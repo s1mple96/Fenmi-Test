@@ -10,6 +10,8 @@ from common.mysql_util import MySQLUtil
 from apps.etc_apply.services.rtx.core_service import CoreService
 
 
+
+
 class DataService:
     """数据服务 - 整合数据库操作和参数处理"""
     
@@ -108,7 +110,7 @@ class DataService:
             return False
     
     @staticmethod
-    def insert_device_stock(car_num: str) -> Dict[str, str]:
+    def insert_device_stock(car_num: str, operator_id: str = None, operator_name: str = None, operator_code: str = None) -> Dict[str, str]:
         """插入设备库存数据"""
         device_config = CoreService.get_device_config()
         province_mapping = device_config.get('province_mapping', {})
@@ -131,10 +133,27 @@ class DataService:
         obn_no = generate_device_no(province_name, "0")
         etc_no = generate_device_no(province_name, "1")
         
+        # 获取设备运营商代码 - 优先级：编码精确匹配 > 名称模糊匹配 > ID映射 > 默认值
+        if operator_code:
+            # 最高优先级：使用运营商编码进行精确匹配
+            operator_codes = CoreService.get_device_operator_codes_by_operator_code(operator_code)
+            print(f"[INFO] 使用运营商编码进行精确匹配: {operator_code}")
+        elif operator_name:
+            # 中等优先级：使用运营商名称进行模糊匹配
+            operator_codes = CoreService.get_device_operator_codes_by_operator_name(operator_name)
+            print(f"[INFO] 使用运营商名称进行模糊匹配: {operator_name}")
+        elif operator_id:
+            # 较低优先级：兼容原有的ID方式
+            operator_codes = CoreService.get_device_operator_codes_by_product(operator_id)
+            print(f"[INFO] 使用运营商ID进行匹配: {operator_id}")
+        else:
+            # 最低优先级：使用默认值
+            operator_codes = {'obu_code': '1', 'etc_code': '10'}
+            print(f"[INFO] 使用默认运营商代码")
+        
         # 准备数据
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         base_data = {
-            "CARD_OPERATORS": "1",
             "STATUS": "1",
             "CAR_NUM": car_num,
             "STOCK_STATUS": "0",
@@ -144,20 +163,24 @@ class DataService:
             "DEVICE_CATEGORY": "0"
         }
         
+        # OBU设备数据 (TYPE=0) - 使用OBU运营商代码
         obn_data = base_data.copy()
         obn_data.update({
             "NEWSTOCK_ID": uuid.uuid4().hex,
             "INTERNAL_DEVICE_NO": obn_no,
             "EXTERNAL_DEVICE_NO": obn_no,
-            "TYPE": "0"
+            "TYPE": "0",
+            "CARD_OPERATORS": operator_codes['obu_code']  # 🔥 OBU使用对应运营商代码
         })
         
+        # ETC设备数据 (TYPE=1) - 使用ETC运营商代码
         etc_data = base_data.copy()
         etc_data.update({
             "NEWSTOCK_ID": uuid.uuid4().hex,
             "INTERNAL_DEVICE_NO": etc_no,
             "EXTERNAL_DEVICE_NO": etc_no,
-            "TYPE": "1"
+            "TYPE": "1",
+            "CARD_OPERATORS": operator_codes['etc_code']  # 🔥 ETC使用对应运营商代码
         })
         
         # 插入数据库
@@ -175,10 +198,20 @@ class DataService:
         insert_row(etc_data)
         db.close()
         
+        operator_info = operator_code or operator_name or operator_id or "默认"
+        print(f"✅ 客车设备入库成功:")
+        print(f"   - 车牌号: {car_num}")
+        print(f"   - 运营商: {operator_info}")
+        print(f"   - OBU号: {obn_no} (运营商代码: {operator_codes['obu_code']})")
+        print(f"   - ETC号: {etc_no} (运营商代码: {operator_codes['etc_code']})")
+        
         return {
             'car_num': car_num,
             'obn_no': obn_no,
-            'etc_no': etc_no
+            'etc_no': etc_no,
+            'obu_operator_code': operator_codes['obu_code'],
+            'etc_operator_code': operator_codes['etc_code'],
+            'operator_info': operator_info
         }
     
     @staticmethod
@@ -259,6 +292,21 @@ class DataService:
                             value = widget.text().strip()
                             if value:  # 只添加非空值
                                 form_data[param_field] = value
+                
+                # 添加客车选择的产品信息
+                if hasattr(ui, 'selected_product') and ui.selected_product:
+                    form_data['selected_product'] = ui.selected_product
+                    # 如果产品包含运营商信息，也添加到参数中
+                    operator_name = ui.selected_product.get('operator_name') or ui.selected_product.get('OPERATOR_NAME')
+                    operator_code = ui.selected_product.get('operator_code') or ui.selected_product.get('OPERATOR_CODE')
+                    
+                    if operator_name:
+                        form_data['operatorName'] = operator_name
+                        print(f"[INFO] 客车参数中添加运营商名称: {operator_name}")
+                    
+                    if operator_code:
+                        form_data['operatorCode'] = operator_code
+                        print(f"[INFO] 客车参数中添加运营商编码: {operator_code}")
             else:
                 # 货车使用货车专用字段名
                 truck_fields = {

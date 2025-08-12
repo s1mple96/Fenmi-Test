@@ -416,20 +416,34 @@ class TruckDataService:
             raise Exception(error_msg)
     
     @staticmethod
-    def insert_truck_device_stock(car_num: str, etc_sn: str, obu_no: str) -> Dict[str, str]:
+    def insert_truck_device_stock(car_num: str, etc_sn: str, obu_no: str, operator_id: str = None, operator_name: str = None) -> Dict[str, str]:
         """插入货车设备库存数据到hcb_newstock表"""
         try:
             import uuid
             from datetime import datetime
+            from apps.etc_apply.services.rtx.core_service import CoreService
             
             conf = TruckCoreService.get_hcb_mysql_config()
             db = MySQLUtil(**conf)
             db.connect()
             
+            # 根据运营商名称或ID获取设备运营商代码
+            if operator_name:
+                # 优先使用运营商名称进行模糊匹配
+                operator_codes = CoreService.get_device_operator_codes_by_operator_name(operator_name)
+                print(f"[INFO] 货车使用运营商名称进行匹配: {operator_name}")
+            elif operator_id:
+                # 兼容原有的ID方式
+                operator_codes = CoreService.get_device_operator_codes_by_product(operator_id)
+                print(f"[INFO] 货车使用运营商ID进行匹配: {operator_id}")
+            else:
+                # 使用默认值
+                operator_codes = {'obu_code': '1', 'etc_code': '10'}
+                print(f"[INFO] 货车使用默认运营商代码")
+            
             # 准备基础数据
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             base_data = {
-                "CARD_OPERATORS": "1",        # 卡片运营商
                 "STATUS": "1",                # 状态
                 "CAR_NUM": car_num,           # 车牌号
                 "STOCK_STATUS": "0",          # 库存状态
@@ -439,22 +453,24 @@ class TruckDataService:
                 "DEVICE_CATEGORY": "0"        # 设备类别
             }
             
-            # OBU设备数据 (TYPE=0)
+            # OBU设备数据 (TYPE=0) - 使用OBU运营商代码
             obu_data = base_data.copy()
             obu_data.update({
                 "NEWSTOCK_ID": uuid.uuid4().hex,
                 "INTERNAL_DEVICE_NO": obu_no,
                 "EXTERNAL_DEVICE_NO": obu_no,
-                "TYPE": "0"  # 0表示OBU
+                "TYPE": "0",  # 0表示OBU
+                "CARD_OPERATORS": operator_codes['obu_code']  # 🔥 OBU使用对应运营商代码
             })
             
-            # ETC设备数据 (TYPE=1)
+            # ETC设备数据 (TYPE=1) - 使用ETC运营商代码
             etc_data = base_data.copy()
             etc_data.update({
                 "NEWSTOCK_ID": uuid.uuid4().hex,
                 "INTERNAL_DEVICE_NO": etc_sn,
                 "EXTERNAL_DEVICE_NO": etc_sn,
-                "TYPE": "1"  # 1表示ETC
+                "TYPE": "1",  # 1表示ETC
+                "CARD_OPERATORS": operator_codes['etc_code']  # 🔥 ETC使用对应运营商代码
             })
             
             # 插入数据库
@@ -468,12 +484,22 @@ class TruckDataService:
             insert_row(etc_data)
             db.close()
             
+            operator_info = operator_name or operator_id or "默认"
+            print(f"✅ 货车设备入库成功:")
+            print(f"   - 车牌号: {car_num}")
+            print(f"   - 运营商: {operator_info}")
+            print(f"   - OBU号: {obu_no} (运营商代码: {operator_codes['obu_code']})")
+            print(f"   - ETC号: {etc_sn} (运营商代码: {operator_codes['etc_code']})")
+            
             return {
                 'car_num': car_num,
                 'obu_no': obu_no,
                 'etc_sn': etc_sn,
                 'obu_stock_id': obu_data['NEWSTOCK_ID'],
-                'etc_stock_id': etc_data['NEWSTOCK_ID']
+                'etc_stock_id': etc_data['NEWSTOCK_ID'],
+                'obu_operator_code': operator_codes['obu_code'],
+                'etc_operator_code': operator_codes['etc_code'],
+                'operator_info': operator_info
             }
             
         except Exception as e:
