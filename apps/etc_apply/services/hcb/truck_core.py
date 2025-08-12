@@ -127,6 +127,10 @@ class TruckCore:
             }
             
             self.log_service.info("货车申办流程全部完成")
+            
+            # 不再自动退款，改为在UI层显示确认弹窗
+            # self._auto_refund_after_success()
+            
             return result
             
         except Exception as e:
@@ -1420,3 +1424,45 @@ class TruckCore:
         except Exception as e:
             self.log_service.error(f"❌ 获取真实用户ID失败: {str(e)}")
             return None 
+
+    def _auto_refund_after_success(self):
+        """货车申办成功后自动执行退款"""
+        try:
+            # 获取车牌号
+            car_num = None
+            # 尝试多种方式获取车牌号
+            if hasattr(self, 'params') and self.params:
+                car_num = (self.params.get("car_num") or 
+                          self.params.get("carNum") or 
+                          self.params.get("truck_plate_province", "") + 
+                          self.params.get("truck_plate_letter", "") + 
+                          self.params.get("truck_plate_number", ""))
+            
+            if not car_num:
+                self.log_service.warning("无法获取车牌号，跳过自动退款")
+                return
+            
+            self.log_service.info(f"开始为货车车牌号 {car_num} 执行申办后自动退款...")
+            
+            # 导入退款服务
+            from apps.etc_apply.services.refund_service import auto_refund_after_apply
+            
+            # 执行自动退款
+            refund_result = auto_refund_after_apply(car_num)
+            
+            # 输出退款结果
+            if refund_result.get('success'):
+                self.log_service.info("✅ 货车自动退款完成!")
+                self.log_service.info(f"📊 退款统计: 总订单 {refund_result['total_orders']}, "
+                                    f"可退款 {refund_result['refundable_orders']}, "
+                                    f"成功退款 {refund_result['refunded_orders']}, "
+                                    f"失败退款 {refund_result['failed_orders']}")
+            else:
+                error_msg = refund_result.get('error_message', '未知错误')
+                self.log_service.error(f"❌ 货车自动退款失败: {error_msg}")
+            
+        except Exception as e:
+            # 退款失败不应该影响主申办流程
+            self.log_service.warning(f"⚠️ 货车自动退款过程发生异常，但不影响申办流程: {e}")
+            import traceback
+            self.log_service.error(f"货车退款详细错误信息: {traceback.format_exc()}") 

@@ -440,6 +440,10 @@ class Core:
             # 流程完成
             self._update_progress(16, StepManager.format_step_message(16))
             print("[DEBUG] 全流程完成")
+            
+            # 不再自动退款，改为在UI层显示确认弹窗
+            # self._auto_refund_after_success()
+            
             return {
                 "sign_check": res8,
                 "save_vehicle_info": res9,
@@ -457,3 +461,36 @@ class Core:
                 print(f"[ERROR] {str(e)}")
             # 不更新进度到16，保持当前失败步骤的进度
             raise Exception(str(e))
+
+    def _auto_refund_after_success(self):
+        """申办成功后自动执行退款"""
+        try:
+            car_num = self.params.get("car_num") or self.params.get("carNum")
+            if not car_num:
+                print("[REFUND] 警告: 无法获取车牌号，跳过自动退款")
+                return
+            
+            print(f"[REFUND] 开始为车牌号 {car_num} 执行申办后自动退款...")
+            
+            # 导入退款服务
+            from apps.etc_apply.services.refund_service import auto_refund_after_apply
+            
+            # 执行自动退款
+            refund_result = auto_refund_after_apply(car_num)
+            
+            # 输出退款结果
+            if refund_result.get('success'):
+                print(f"[REFUND] ✅ 自动退款完成!")
+                print(f"[REFUND] 📊 统计: 总订单 {refund_result['total_orders']}, "
+                      f"可退款 {refund_result['refundable_orders']}, "
+                      f"成功退款 {refund_result['refunded_orders']}, "
+                      f"失败退款 {refund_result['failed_orders']}")
+            else:
+                error_msg = refund_result.get('error_message', '未知错误')
+                print(f"[REFUND] ❌ 自动退款失败: {error_msg}")
+            
+        except Exception as e:
+            # 退款失败不应该影响主申办流程
+            print(f"[REFUND] ⚠️ 自动退款过程发生异常，但不影响申办流程: {e}")
+            import traceback
+            print(f"[REFUND] 详细错误信息: {traceback.format_exc()}")

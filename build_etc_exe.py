@@ -61,6 +61,7 @@ hiddenimports = [
     'apps.etc_apply.ui.rtx.verify_dialog',
     'apps.etc_apply.ui.rtx.selection_dialogs',
     'apps.etc_apply.ui.rtx.draggable_components',
+    'apps.etc_apply.ui.rtx.refund_confirm_dialog',
     'apps.etc_apply.ui.hcb.truck_tab_widget',
     # ETC申办服务模块 - RTX
     'apps.etc_apply.services.rtx.core_service',
@@ -71,6 +72,8 @@ hiddenimports = [
     'apps.etc_apply.services.rtx.state_service',
     'apps.etc_apply.services.rtx.worker_thread',
     'apps.etc_apply.services.rtx.api_client',
+    # 退款服务模块
+    'apps.etc_apply.services.refund_service',
     # ETC申办服务模块 - HCB
     'apps.etc_apply.services.hcb.truck_service',
     'apps.etc_apply.services.hcb.truck_data_service',
@@ -415,8 +418,10 @@ def main():
     critical_modules = [
         'apps/etc_apply/ui/rtx/ui_events.py',
         'apps/etc_apply/ui/rtx/ui_utils.py', 
+        'apps/etc_apply/ui/rtx/refund_confirm_dialog.py',
         'apps/etc_apply/services/rtx/etc_service.py',
         'apps/etc_apply/services/hcb/truck_service.py',
+        'apps/etc_apply/services/refund_service.py',
         'common/config_util.py',
         'common/mysql_util.py'
     ]
