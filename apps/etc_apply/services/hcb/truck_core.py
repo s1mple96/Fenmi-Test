@@ -101,7 +101,10 @@ class TruckCore:
                                  f"错误码={error_detail.get('error_code', '未知')}, "
                                  f"错误信息={error_message}")
             
-            return (False, error_message)
+            # 格式化完整的错误信息，包含请求和响应详情
+            full_error_message = CoreService.format_api_error_with_details(error_message, error_detail)
+            
+            return (False, full_error_message)
         else:
             return (False, str(e))
     
@@ -212,9 +215,7 @@ class TruckCore:
                 # 使用具体的错误信息，如果没有则使用默认信息
                 error_msg = error_detail if error_detail else f"{step_number}.{step_name}失败"
                 
-                # 检查是否包含业务错误信息，如果是则尝试显示详细错误
-                if error_detail and ("业务错误:" in error_detail or "注册日期有误" in error_detail or "行驶证初登日期" in error_detail):
-                    # 对于API业务错误，也显示详细错误信息
+                # 显示详细错误信息（无论是否为API错误）
                     if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
                         ui = None
                         
@@ -228,7 +229,7 @@ class TruckCore:
                             # 尝试从最近的API调用中获取详细信息
                             try:
                                 # 从API客户端的最后一次调用获取详细信息
-                                if hasattr(self.api_client, 'last_error_detail'):
+                            if hasattr(self.api_client, 'last_error_detail') and self.api_client.last_error_detail:
                                     error_detail_obj = self.api_client.last_error_detail
                                     full_error_message = CoreService.format_api_error_with_details(
                                         error_detail, error_detail_obj
@@ -249,22 +250,6 @@ class TruckCore:
                                 ui.show_api_error(
                                     f"货车申办步骤{step_number}: {step_name}",
                                     error_detail
-                                )
-                else:
-                    # 对于非API错误，显示基本错误信息
-                    if hasattr(self.flow_state, 'progress_callback') and self.flow_state.progress_callback:
-                        ui = None
-                        
-                        # 尝试多种方式获取UI对象
-                        if hasattr(self.flow_state.progress_callback, '__self__'):
-                            ui = self.flow_state.progress_callback.__self__
-                        elif hasattr(self.flow_state.progress_callback, 'ui'):
-                            ui = self.flow_state.progress_callback.ui
-                        
-                        if ui and hasattr(ui, 'show_api_error'):
-                            ui.show_api_error(
-                                f"货车申办步骤{step_number}: {step_name}",
-                                error_detail if error_detail else "步骤执行失败，请检查参数或网络连接"
                             )
                 
                 self.flow_state.update_progress(

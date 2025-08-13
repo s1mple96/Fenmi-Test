@@ -157,14 +157,49 @@ class TruckApiClient:
                     
         except requests.exceptions.RequestException as e:
             self.log_service.error(f"{path} 网络请求失败: {str(e)}")
-            raise Exception(f"网络请求失败: {str(e)}")
+            
+            # 创建网络错误详情
+            error_detail = CoreService.create_api_error_detail(
+                api_path=path,
+                url=url,
+                error_code="NETWORK_ERROR",
+                error_message=f"网络请求失败: {str(e)}",
+                request_data=cleaned_data,
+                response_data={"error": str(e), "type": "RequestException"}
+            )
+            
+            # 保存错误详情
+            self.last_error_detail = error_detail
+            
+            # 抛出带详情的异常
+            exception = Exception(f"网络请求失败: {str(e)}")
+            exception.error_detail = error_detail
+            raise exception
+            
         except Exception as e:
             # 如果异常已经有error_detail，直接重新抛出
             if hasattr(e, 'error_detail'):
                 raise e
             else:
                 self.log_service.error(f"{path} 请求异常: {str(e)}")
-                raise Exception(f"请求异常: {str(e)}")
+                
+                # 创建通用错误详情
+                error_detail = CoreService.create_api_error_detail(
+                    api_path=path,
+                    url=url,
+                    error_code="UNKNOWN_ERROR",
+                    error_message=f"请求异常: {str(e)}",
+                    request_data=cleaned_data,
+                    response_data={"error": str(e), "type": "Exception"}
+                )
+                
+                # 保存错误详情
+                self.last_error_detail = error_detail
+                
+                # 抛出带详情的异常
+                exception = Exception(f"请求异常: {str(e)}")
+                exception.error_detail = error_detail
+                raise exception
     
     # ==================== 货车流程专用接口 ====================
     

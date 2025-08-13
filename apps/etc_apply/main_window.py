@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
 
-from PyQt5.QtWidgets import QDialog, QPushButton, QHBoxLayout, QWidget, QVBoxLayout, QTabWidget
+from PyQt5.QtWidgets import QDialog, QWidget, QVBoxLayout, QTabWidget
 from PyQt5.QtCore import pyqtSignal, Qt
 from apps.etc_apply.ui.rtx.ui_events import ui_events, excepthook
 from apps.etc_apply.ui.rtx.ui_utils import ui_builder
@@ -82,23 +82,40 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
     
     def handle_error_message(self, title, error_content):
         """处理错误消息，在UI中显示详细错误信息"""
-        from PyQt5.QtWidgets import QMessageBox, QTextEdit
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel
         from PyQt5.QtCore import Qt
         import os
         
-        # 创建详细错误对话框
-        error_dialog = QMessageBox(self)
+        # 创建自定义错误对话框
+        error_dialog = QDialog(self)
         error_dialog.setWindowTitle(title)
-        error_dialog.setIcon(QMessageBox.Critical)
+        error_dialog.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
+        error_dialog.setModal(True)
         
-        # 设置主要错误信息（如果太长则显示简短版本）
-        if len(error_content) > 200:
-            # 如果错误内容很长，显示简短版本在主文本中
-            lines = error_content.split('\n')
-            short_content = lines[0] if lines else error_content[:200] + "..."
-            error_dialog.setText(f"操作失败：{short_content}")
-        else:
-            error_dialog.setText(f"操作失败：{error_content}")
+        # 设置对话框大小
+        error_dialog.resize(800, 600)
+        error_dialog.setMinimumSize(600, 400)
+        
+        # 创建布局
+        layout = QVBoxLayout(error_dialog)
+        
+        # 添加错误图标和主要消息
+        header_layout = QHBoxLayout()
+        
+        # 错误标题
+        error_label = QLabel("❌ 操作失败")
+        error_label.setStyleSheet("""
+            QLabel {
+                color: #d32f2f;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 10px;
+            }
+        """)
+        header_layout.addWidget(error_label)
+        header_layout.addStretch()
+        
+        layout.addLayout(header_layout)
         
         # 检查错误内容是否已经包含调试信息
         if "📋 API调用详情" in error_content:
@@ -109,11 +126,19 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
             detailed_content = error_content
             
             # 检查是否有接口错误的基本信息（通过特定格式识别）
-            if "接口错误" in title:
-                detailed_content += "\n\n" + "="*50 + "\n"
-                detailed_content += "📋 错误详情\n"
-                detailed_content += "="*50 + "\n"
-                detailed_content += "🔹 这是一个API接口调用错误\n"
+            if "接口错误" in title or "API" in title or "请求失败" in title:
+                # 如果错误内容已经包含详细的API信息，直接使用
+                if "API调用详情" in error_content or "请求参数" in error_content or "响应结果" in error_content:
+                    detailed_content += "\n\n" + "="*60 + "\n"
+                    detailed_content += "📋 详细错误信息\n"
+                    detailed_content += "="*60 + "\n"
+                    detailed_content += error_content
+                else:
+                    # 显示基本的错误信息
+                    detailed_content += "\n\n" + "="*50 + "\n"
+                    detailed_content += "📋 错误详情\n"
+                    detailed_content += "="*50 + "\n"
+                    detailed_content += "🔹 这是一个API接口调用错误\n"
                 
                 # 添加日志文件位置信息
                 try:
@@ -142,21 +167,99 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
                 except Exception as e:
                     detailed_content += f"🔹 无法确定日志文件位置: {str(e)}\n"
         
-        # 始终在详细信息中显示完整内容
-        error_dialog.setDetailedText(detailed_content)
+        # 创建可滚动的文本显示区域
+        text_edit = QTextEdit()
+        text_edit.setPlainText(detailed_content)
+        text_edit.setReadOnly(True)
+        text_edit.setFont(text_edit.font())  # 使用默认字体
         
-        # 设置对话框大小，确保能显示足够的信息
-        error_dialog.setMinimumSize(500, 300)
+        # 设置文本框样式，确保有明显的滚动条
+        text_edit.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #ccc;
+                background-color: #f9f9f9;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.4;
+            }
+            QScrollBar:vertical {
+                border: 1px solid #bbb;
+                background: #f0f0f0;
+                width: 15px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #888;
+                border-radius: 3px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        """)
+        
+        # 确保滚动条始终可见
+        text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        layout.addWidget(text_edit)
         
         # 添加按钮
-        error_dialog.setStandardButtons(QMessageBox.Ok | QMessageBox.Close)
-        error_dialog.setDefaultButton(QMessageBox.Ok)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        # 复制到剪贴板按钮
+        copy_button = QPushButton("📋 复制详情")
+        copy_button.clicked.connect(lambda: self._copy_to_clipboard(detailed_content))
+        copy_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        button_layout.addWidget(copy_button)
+        
+        # 确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(error_dialog.accept)
+        ok_button.setDefault(True)
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        button_layout.addWidget(ok_button)
+        
+        layout.addLayout(button_layout)
         
         # 同时在日志中记录错误
         self.log_signal.emit(f"❌ {title}: {error_content}")
         
         # 显示对话框
         error_dialog.exec_()
+
+    def _copy_to_clipboard(self, text):
+        """复制文本到剪贴板"""
+        from PyQt5.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        self.log_signal.emit("📋 错误详情已复制到剪贴板")
 
     def create_tab_container(self):
         """创建Tab容器"""

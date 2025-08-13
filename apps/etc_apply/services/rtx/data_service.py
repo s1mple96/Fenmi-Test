@@ -87,6 +87,30 @@ class DataService:
             raise Exception(error_msg)
     
     @staticmethod
+    def enable_mock_data() -> bool:
+        """启用Mock数据配置"""
+        try:
+            mysql_conf = CoreService.get_rtx_mysql_config()
+            if not mysql_conf:
+                print("未找到MySQL连接配置，无法启用Mock数据")
+                return False
+            
+            business_config = CoreService.get_business_config()
+            mock_config_id = business_config.get('mock_config_id', 55)
+            
+            db = MySQLUtil(**mysql_conf)
+            db.connect()
+            sql = f"UPDATE rtx.sys_config t SET t.config_value = '1' WHERE t.config_id = {mock_config_id}"
+            db.execute(sql)
+            db.close()
+            print("客车Mock数据已启用")
+            return True
+        except Exception as e:
+            error_msg = CoreService.format_database_error("启用Mock数据", e)
+            print(f"启用Mock数据失败: {error_msg}")
+            return False
+    
+    @staticmethod
     def close_mock_data() -> bool:
         """关闭Mock数据配置"""
         try:
@@ -103,7 +127,7 @@ class DataService:
             sql = f"UPDATE rtx.sys_config t SET t.config_value = '0' WHERE t.config_id = {mock_config_id}"
             db.execute(sql)
             db.close()
-            print("Mock数据已关闭")
+            print("客车Mock数据已关闭")
             return True
         except Exception as e:
             error_msg = CoreService.format_database_error("关闭Mock数据", e)
@@ -138,14 +162,14 @@ class DataService:
         if operator_code:
             # 使用运营商编码获取前缀
             device_prefix = CoreService.get_operator_prefix_by_code(operator_code)
-            obn_no = generate_device_no_by_prefix(device_prefix, "0")
+            obu_no = generate_device_no_by_prefix(device_prefix, "0")
             etc_no = generate_device_no_by_prefix(device_prefix, "1")
             print(f"[INFO] 根据运营商编码 {operator_code} 生成设备号，前缀: {device_prefix}")
         else:
             # 兜底方案：解析车牌号获取省份
             province_abbr = car_num[0] if car_num else "苏"
             province_name = province_mapping.get(province_abbr, "江苏")
-            obn_no = generate_device_no_by_province(province_name, "0")
+            obu_no = generate_device_no_by_province(province_name, "0")
             etc_no = generate_device_no_by_province(province_name, "1")
             print(f"[INFO] 根据车牌省份 {province_name} 生成设备号（兜底方案）")
         
@@ -186,11 +210,11 @@ class DataService:
         })
         
         # OBU设备数据 (TYPE=1) - 使用OBU运营商代码
-        obn_data = base_data.copy()
-        obn_data.update({
+        obu_data = base_data.copy()
+        obu_data.update({
             "NEWSTOCK_ID": uuid.uuid4().hex,
-            "INTERNAL_DEVICE_NO": obn_no,
-            "EXTERNAL_DEVICE_NO": obn_no,
+            "INTERNAL_DEVICE_NO": obu_no,
+            "EXTERNAL_DEVICE_NO": obu_no,
             "TYPE": "1",  # 🔥 修正：数据库定义 1=OBU
             "CARD_OPERATORS": operator_codes['obu_code']  # 🔥 OBU使用对应运营商代码
         })
@@ -207,7 +231,7 @@ class DataService:
             db.execute(sql, tuple(row.values()))
         
         insert_row(etc_data)
-        insert_row(obn_data)
+        insert_row(obu_data)
         db.close()
         
         operator_info = operator_code or operator_name or operator_id or "默认"
@@ -215,11 +239,11 @@ class DataService:
         print(f"   - 车牌号: {car_num}")
         print(f"   - 运营商: {operator_info}")
         print(f"   - ETC号: {etc_no} (TYPE=0, 运营商代码: {operator_codes['etc_code']})")
-        print(f"   - OBU号: {obn_no} (TYPE=1, 运营商代码: {operator_codes['obu_code']})")
+        print(f"   - OBU号: {obu_no} (TYPE=1, 运营商代码: {operator_codes['obu_code']})")
         
         return {
             'car_num': car_num,
-            'obn_no': obn_no,
+            'obu_no': obu_no,
             'etc_no': etc_no,
             'obu_operator_code': operator_codes['obu_code'],
             'etc_operator_code': operator_codes['etc_code'],

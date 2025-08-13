@@ -256,8 +256,8 @@ class CoreService:
         :return: 设备运营商代码
         """
         CoreService._log_warning(f"⚠️ get_device_operator_code_by_name已废弃，建议使用BZ字段精确匹配")
-        # 返回默认值
-        return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
+            # 返回默认值
+            return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
     
 
     
@@ -433,7 +433,7 @@ class CoreService:
                 return name_en
             else:
                 CoreService._log_error(f"❌ BZ字段精确匹配失败: {operator_code}")
-                return "1"
+                    return "1"
                 
         except Exception as e:
             CoreService._log_error(f"通过运营商编码获取设备运营商代码失败: {str(e)}")
@@ -673,17 +673,20 @@ class CoreService:
     def format_api_error_with_details(error_message: str, error_detail: Dict[str, Any]) -> str:
         """格式化包含详细调试信息的API错误消息"""
         # 添加调试信息
-        debug_info = "\n\n" + "="*40 + "\n"
+        debug_info = "\n\n" + "="*60 + "\n"
         debug_info += "📋 API调用详情\n"
-        debug_info += "="*40 + "\n"
+        debug_info += "="*60 + "\n"
         debug_info += f"🔹 API路径: {error_detail.get('api_path', '未知')}\n"
         debug_info += f"🔹 请求URL: {error_detail.get('url', '未知')}\n"
         debug_info += f"🔹 错误码: {error_detail.get('error_code', '未知')}\n"
+        debug_info += f"🔹 错误信息: {error_detail.get('error_message', '未知')}\n"
         
         # 添加请求参数
         request_data = error_detail.get('request_data')
         if request_data:
-            debug_info += f"🔹 请求参数:\n"
+            debug_info += "\n" + "="*40 + "\n"
+            debug_info += "📤 请求参数\n"
+            debug_info += "="*40 + "\n"
             import json
             try:
                 formatted_request = json.dumps(request_data, ensure_ascii=False, indent=2)
@@ -694,7 +697,9 @@ class CoreService:
         # 添加响应结果
         response_data = error_detail.get('response_data')
         if response_data:
-            debug_info += f"🔹 响应结果:\n"
+            debug_info += "\n" + "="*40 + "\n"
+            debug_info += "📥 响应结果\n"
+            debug_info += "="*40 + "\n"
             try:
                 formatted_response = json.dumps(response_data, ensure_ascii=False, indent=2)
                 debug_info += f"{formatted_response}\n"

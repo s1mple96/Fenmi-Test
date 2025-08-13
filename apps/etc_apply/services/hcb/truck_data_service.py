@@ -77,20 +77,20 @@ class TruckDataService:
                 print(f"[INFO] 根据运营商编码 {operator_code} 生成ETC号，前缀: {prefix}")
             else:
                 # 兜底方案：从车牌号获取省份
-                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
-                
-                # 省份简称到代码的映射（与DataFactory保持一致）
-                province_prefix = {
-                    '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                    '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                    '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                    '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                    '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                    '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                    '琼': '4600', '粤': '4400'
-                }
-                
-                prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+            
+            # 省份简称到代码的映射（与DataFactory保持一致）
+            province_prefix = {
+                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
+                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
+                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
+                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
+                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
+                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
+                '琼': '4600', '粤': '4400'
+            }
+            
+            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
                 print(f"[INFO] 根据车牌省份 {province_abbr} 生成ETC号，前缀: {prefix}（兜底方案）")
             
             # ETC号总长度20位，省份代码4位，剩余16位随机数字
@@ -119,20 +119,20 @@ class TruckDataService:
                 print(f"[INFO] 根据运营商编码 {operator_code} 生成OBU号，前缀: {prefix}")
             else:
                 # 兜底方案：从车牌号获取省份
-                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
-                
-                # 省份简称到代码的映射（与DataFactory保持一致）
-                province_prefix = {
-                    '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                    '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                    '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                    '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                    '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                    '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                    '琼': '4600', '粤': '4400'
-                }
-                
-                prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+            
+            # 省份简称到代码的映射（与DataFactory保持一致）
+            province_prefix = {
+                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
+                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
+                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
+                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
+                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
+                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
+                '琼': '4600', '粤': '4400'
+            }
+            
+            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
                 print(f"[INFO] 根据车牌省份 {province_abbr} 生成OBU号，前缀: {prefix}（兜底方案）")
             
             # OBU号总长度16位，省份代码4位，剩余12位随机数字
@@ -200,24 +200,20 @@ class TruckDataService:
     
     @staticmethod
     def close_mock_data() -> bool:
-        """关闭Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
+        """关闭Mock数据配置（货车版本）- 使用货车系统的hcb.sys_dictionaries表"""
         try:
-            # 使用客车系统的rtx数据库配置
-            from apps.etc_apply.services.rtx.core_service import CoreService
-            mysql_conf = CoreService.get_rtx_mysql_config()
-            if not mysql_conf:
+            # 使用货车系统的hcb数据库配置
+            conf = TruckCoreService.get_hcb_mysql_config()
+            if not conf:
                 print("未找到MySQL连接配置，无法关闭Mock数据")
                 return False
             
-            business_config = CoreService.get_business_config()
-            mock_config_id = business_config.get('mock_config_id', 55)
-            
-            db = MySQLUtil(**mysql_conf)
+            db = MySQLUtil(**conf)
             db.connect()
-            sql = f"UPDATE rtx.sys_config t SET t.config_value = '0' WHERE t.config_id = {mock_config_id}"
+            sql = "UPDATE hcb.sys_dictionaries SET NAME_EN = '0' WHERE BIANMA = 'isMockData'"
             db.execute(sql)
             db.close()
-            print("货车Mock数据已关闭（使用rtx.sys_config表）")
+            print("货车Mock数据已关闭（使用hcb.sys_dictionaries表）")
             return True
         except Exception as e:
             print(f"关闭货车Mock数据失败: {str(e)}")
@@ -225,24 +221,20 @@ class TruckDataService:
     
     @staticmethod
     def enable_mock_data() -> bool:
-        """启用Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
+        """启用Mock数据配置（货车版本）- 使用货车系统的hcb.sys_dictionaries表"""
         try:
-            # 使用客车系统的rtx数据库配置
-            from apps.etc_apply.services.rtx.core_service import CoreService
-            mysql_conf = CoreService.get_rtx_mysql_config()
-            if not mysql_conf:
+            # 使用货车系统的hcb数据库配置
+            conf = TruckCoreService.get_hcb_mysql_config()
+            if not conf:
                 print("未找到MySQL连接配置，无法启用Mock数据")
                 return False
             
-            business_config = CoreService.get_business_config()
-            mock_config_id = business_config.get('mock_config_id', 55)
-            
-            db = MySQLUtil(**mysql_conf)
+            db = MySQLUtil(**conf)
             db.connect()
-            sql = f"UPDATE rtx.sys_config t SET t.config_value = '1' WHERE t.config_id = {mock_config_id}"
+            sql = "UPDATE hcb.sys_dictionaries SET NAME_EN = '1' WHERE BIANMA = 'isMockData'"
             db.execute(sql)
             db.close()
-            print("货车Mock数据已启用（使用rtx.sys_config表）")
+            print("货车Mock数据已启用（使用hcb.sys_dictionaries表）")
             return True
         except Exception as e:
             print(f"启用货车Mock数据失败: {str(e)}")

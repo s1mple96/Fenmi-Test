@@ -308,7 +308,7 @@ class Core:
             
             # 从device_result中获取生成的设备号，保存到params中供step14使用
             if device_result:
-                obu_no = device_result.get('obn_no')  # insert_device_stock返回的是obn_no
+                obu_no = device_result.get('obu_no')  # insert_device_stock返回的是obu_no
                 etc_sn = device_result.get('etc_no')   # insert_device_stock返回的是etc_no
                 activation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 

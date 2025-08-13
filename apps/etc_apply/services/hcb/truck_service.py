@@ -12,7 +12,7 @@ from apps.etc_apply.ui.rtx.ui_utils import ui_threads
 
 def start_truck_apply_flow(params, ui):
     """
-    启动货车ETC申办主流程
+    启动货车ETC申办主流程（包含防重复申办检查）
     :param params: 参数字典
     :param ui: UI主窗口对象
     """
@@ -20,6 +20,13 @@ def start_truck_apply_flow(params, ui):
         from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
         params = TruckDataService.validate_and_complete_truck_params(params)
     except ValueError as e:
+        # 参数验证失败时，需要关闭可能已开启的Mock数据
+        try:
+            TruckDataService.close_mock_data()
+            if hasattr(ui, 'log_signal'):
+                ui.log_signal.emit("参数验证失败，已关闭Mock数据")
+        except Exception as mock_e:
+            print(f"关闭Mock数据失败: {str(mock_e)}")
         QMessageBox.warning(None, "参数错误", str(e))
         return
 
@@ -32,6 +39,90 @@ def start_truck_apply_flow(params, ui):
     
     # 为progress_callback添加UI对象引用，以便错误处理能访问UI
     progress_callback.ui = ui
+
+    # 🔥 首先进行防重复申办检查
+    try:
+        from apps.etc_apply.services.hcb.duplicate_check_service import DuplicateCheckService
+        from apps.etc_apply.ui.rtx.duplicate_check_dialog import DuplicateCheckDialog
+        
+        # 提取用户五要素信息进行检查
+        user_info = {
+            'name': params.get('name', '') or params.get('cardHolder', ''),
+            'phone': params.get('phone', ''),
+            'id_code': params.get('id_code', '') or params.get('idCode', ''),
+            'car_num': params.get('car_num', '') or params.get('carNum', ''),
+            'vehicle_color': params.get('vehicle_color', '') or params.get('vehicleColor', '')
+        }
+        
+        progress_callback(5, "正在检查是否存在重复申办记录...")
+        
+        # 执行重复检查
+        duplicate_service = DuplicateCheckService()
+        has_existing, existing_records = duplicate_service.check_user_existing_applications(user_info)
+        
+        if has_existing:
+            # 🔥 过滤出需要修改状态的记录
+            records_to_modify, records_to_skip = duplicate_service.filter_records_need_modify(existing_records)
+            
+            if records_to_modify:
+                # 有需要修改的记录，显示确认对话框
+                progress_callback(10, f"发现{len(records_to_modify)}条需要处理的ETC记录，请用户确认...")
+                continue_apply = DuplicateCheckDialog.show_duplicate_check_dialog(records_to_modify, ui)
+            else:
+                # 所有记录都无需修改，直接继续申办
+                progress_callback(10, f"发现{len(existing_records)}条ETC记录，但都无需修改状态，继续申办...")
+                continue_apply = True
+            
+            if not continue_apply:
+                progress_callback(0, "用户取消申办")
+                # 用户取消申办时，需要关闭可能已开启的Mock数据
+                try:
+                    from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+                    TruckDataService.close_mock_data()
+                    if hasattr(ui, 'log_signal'):
+                        ui.log_signal.emit("用户取消申办，已关闭Mock数据")
+                except Exception as e:
+                    print(f"关闭Mock数据失败: {str(e)}")
+                QMessageBox.information(ui, "申办取消", "用户取消ETC申办操作")
+                return
+            
+            # 用户确认继续，临时修改状态
+            progress_callback(15, "正在临时修改重复记录状态...")
+            modify_success = duplicate_service.temporarily_modify_status_for_reapply(existing_records)
+            
+            if not modify_success:
+                # 临时修改状态失败时，需要关闭可能已开启的Mock数据
+                try:
+                    from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+                    TruckDataService.close_mock_data()
+                    if hasattr(ui, 'log_signal'):
+                        ui.log_signal.emit("状态修改失败，已关闭Mock数据")
+                except Exception as e:
+                    print(f"关闭Mock数据失败: {str(e)}")
+                QMessageBox.critical(ui, "错误", "临时修改记录状态失败，无法继续申办")
+                return
+            
+            progress_callback(20, "状态修改成功，开始申办流程...")
+            
+            # 将duplicate_service存储到UI，以便申办完成后恢复状态
+            ui.duplicate_service = duplicate_service
+            
+        else:
+            progress_callback(10, "未发现重复记录，开始申办流程...")
+            ui.duplicate_service = None
+            
+    except Exception as e:
+        progress_callback(0, f"重复检查失败: {str(e)}")
+        # 重复检查异常时，需要关闭可能已开启的Mock数据
+        try:
+            from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
+            TruckDataService.close_mock_data()
+            if hasattr(ui, 'log_signal'):
+                ui.log_signal.emit("重复检查异常，已关闭Mock数据")
+        except Exception as mock_e:
+            print(f"关闭Mock数据失败: {str(mock_e)}")
+        QMessageBox.critical(ui, "检查错误", f"重复申办检查失败：{str(e)}")
+        return
 
     def run_truck_flow():
         # 从配置服务获取cookies和URL
@@ -162,10 +253,31 @@ def show_truck_confirm_dialog(ui, step5_result):
 
 def handle_truck_result(result, ui=None):
     """
-    处理货车ETC申办流程结果
+    处理货车ETC申办流程结果（包含状态恢复）
     :param result: 结果数据
     :param ui: 可选，UI对象用于信号/弹窗等
     """
+    # 🔥 首先处理重复申办状态恢复
+    if ui and hasattr(ui, 'duplicate_service') and ui.duplicate_service:
+        try:
+            if hasattr(ui, 'log_signal'):
+                ui.log_signal.emit("正在恢复临时修改的记录状态...")
+            
+            restore_success = ui.duplicate_service.restore_original_status()
+            
+            if restore_success:
+                backup_summary = ui.duplicate_service.get_backup_summary()
+                if hasattr(ui, 'log_signal'):
+                    ui.log_signal.emit(f"✅ 成功恢复{backup_summary['restored']}条记录的原始状态")
+            else:
+                if hasattr(ui, 'log_signal'):
+                    ui.log_signal.emit("⚠️ 恢复原始状态失败，请检查日志")
+                    
+        except Exception as e:
+            print(f"[ERROR] 恢复原始状态异常: {e}")
+            if hasattr(ui, 'log_signal'):
+                ui.log_signal.emit(f"❌ 恢复状态异常: {str(e)}")
+    
     # 流程完成后关闭Mock数据（货车版本）
     try:
         from apps.etc_apply.services.hcb.truck_data_service import TruckDataService

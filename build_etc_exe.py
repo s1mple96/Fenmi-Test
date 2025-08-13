@@ -71,6 +71,7 @@ hiddenimports = [
     'apps.etc_apply.ui.rtx.draggable_components',
     'apps.etc_apply.ui.rtx.refund_confirm_dialog',
     'apps.etc_apply.ui.hcb.truck_tab_widget',
+    'apps.etc_apply.ui.rtx.duplicate_check_dialog',
     
     # ETC申办服务模块 - RTX
     'apps.etc_apply.services.rtx.core_service',
@@ -87,6 +88,7 @@ hiddenimports = [
     
     # ETC申办服务模块 - HCB
     'apps.etc_apply.services.hcb.truck_service',
+    'apps.etc_apply.services.hcb.duplicate_check_service',
     'apps.etc_apply.services.hcb.truck_data_service',
     'apps.etc_apply.services.hcb.truck_core_service',
     'apps.etc_apply.services.hcb.truck_state_service',
@@ -152,7 +154,7 @@ excludes = [
     # GUI框架（第三方，保留PyQt5核心）
     'wx', 'kivy', 'pygame', 'pyglet', 'arcade',
     'pyopengl', 'panda3d', 'ursina', 'dearpygui',
-    
+
     # Qt WebEngine（大幅减小体积）
     'PyQt5.QtWebEngine', 'PyQt5.QtWebEngineCore', 'PyQt5.QtWebEngineWidgets',
     'PyQt5.QtWebKit', 'PyQt5.QtWebKitWidgets',
@@ -162,7 +164,7 @@ excludes = [
     'PyQt5.QtHelp', 'PyQt5.QtDesigner', 'PyQt5.QtUiTools',
     'PyQt5.QtBluetooth', 'PyQt5.QtNfc', 'PyQt5.QtPositioning',
     'PyQt5.QtLocation', 'PyQt5.QtSensors', 'PyQt5.QtSerialPort',
-    
+
     # 加密和SSH（第三方）
     'paramiko', 'cryptography', 'bcrypt', 'nacl', 'PyNaCl',
     'pycryptodome', 'keyring', 'pyopenssl',
