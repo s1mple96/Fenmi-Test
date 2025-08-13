@@ -71,6 +71,52 @@
       "安徽": "3401",
       "四川": "5101"
     },
+    "operator_prefix_mapping": {
+      "XTK": "3201",
+      "MTK": "1501",
+      "HTK": "4301",
+      "GXTK": "4501",
+      "HLTK": "2301",
+      "ATK": "3401",
+      "STK": "5101"
+    },
+    "operator_province_info": {
+      "XTK": {
+        "province": "江苏",
+        "prefix": "3201",
+        "plate_patterns": ["苏A", "苏B", "苏C", "苏D", "苏E", "苏F", "苏G", "苏H", "苏J", "苏K", "苏L", "苏M", "苏N", "苏U"]
+      },
+      "HTK": {
+        "province": "湖南",
+        "prefix": "4301",
+        "plate_patterns": ["湘A", "湘B", "湘C", "湘D", "湘E", "湘F", "湘G", "湘H", "湘J", "湘K", "湘L", "湘M", "湘N", "湘U"]
+      },
+      "GXTK": {
+        "province": "广西",
+        "prefix": "4501",
+        "plate_patterns": ["桂A", "桂B", "桂C", "桂D", "桂E", "桂F", "桂G", "桂H", "桂J", "桂K", "桂L", "桂M", "桂N", "桂P", "桂R"]
+      },
+      "HLTK": {
+        "province": "黑龙江",
+        "prefix": "2301",
+        "plate_patterns": ["黑A", "黑B", "黑C", "黑D", "黑E", "黑F", "黑G", "黑H", "黑J", "黑K", "黑L", "黑M", "黑N", "黑P", "黑R"]
+      },
+      "MTK": {
+        "province": "内蒙古",
+        "prefix": "1501",
+        "plate_patterns": ["蒙A", "蒙B", "蒙C", "蒙D", "蒙E", "蒙F", "蒙G", "蒙H", "蒙J", "蒙K", "蒙L", "蒙M"]
+      },
+      "ATK": {
+        "province": "安徽",
+        "prefix": "3401",
+        "plate_patterns": ["皖A", "皖B", "皖C", "皖D", "皖E", "皖F", "皖G", "皖H", "皖J", "皖K", "皖L", "皖M", "皖N", "皖P", "皖R", "皖S"]
+      },
+      "STK": {
+        "province": "四川",
+        "prefix": "5101",
+        "plate_patterns": ["川A", "川B", "川C", "川D", "川E", "川F", "川G", "川H", "川J", "川K", "川L", "川M", "川N", "川P", "川Q", "川R", "川S", "川T", "川U", "川V", "川W", "川X", "川Y", "川Z"]
+      }
+    },
     "obu_length": 16,
     "etc_length": 20
   },

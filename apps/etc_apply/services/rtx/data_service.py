@@ -119,20 +119,35 @@ class DataService:
         obu_length = device_config.get('obu_length', 16)
         etc_length = device_config.get('etc_length', 20)
         
-        def generate_device_no(province, device_type):
-            code = province_codes.get(province, "9999")
+        def generate_device_no_by_prefix(prefix, device_type):
+            """根据前缀生成设备号"""
+            length = obu_length if device_type == "0" else etc_length
+            remain = length - len(prefix)
+            suffix = ''.join(random.choices("0123456789", k=remain))
+            return prefix + suffix
+        
+        def generate_device_no_by_province(province, device_type):
+            """根据省份生成设备号（兜底方案）"""
+            code = province_codes.get(province, "3201")
             length = obu_length if device_type == "0" else etc_length
             remain = length - len(code)
             suffix = ''.join(random.choices("0123456789", k=remain))
             return code + suffix
         
-        # 解析车牌号获取省份
-        province_abbr = car_num[0] if car_num else "苏"
-        province_name = province_mapping.get(province_abbr, "江苏")
-        
-        # 生成设备号
-        obn_no = generate_device_no(province_name, "0")
-        etc_no = generate_device_no(province_name, "1")
+        # 🔥 新逻辑：优先根据运营商编码生成设备号前缀
+        if operator_code:
+            # 使用运营商编码获取前缀
+            device_prefix = CoreService.get_operator_prefix_by_code(operator_code)
+            obn_no = generate_device_no_by_prefix(device_prefix, "0")
+            etc_no = generate_device_no_by_prefix(device_prefix, "1")
+            print(f"[INFO] 根据运营商编码 {operator_code} 生成设备号，前缀: {device_prefix}")
+        else:
+            # 兜底方案：解析车牌号获取省份
+            province_abbr = car_num[0] if car_num else "苏"
+            province_name = province_mapping.get(province_abbr, "江苏")
+            obn_no = generate_device_no_by_province(province_name, "0")
+            etc_no = generate_device_no_by_province(province_name, "1")
+            print(f"[INFO] 根据车牌省份 {province_name} 生成设备号（兜底方案）")
         
         # 获取设备运营商代码 - 优先级：编码精确匹配 > ID映射 > 默认值
         if operator_code:

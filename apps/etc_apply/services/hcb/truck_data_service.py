@@ -66,25 +66,32 @@ class TruckDataService:
             raise Exception(error_msg)
     
     @staticmethod
-    def generate_etc_sn(car_num: str = None) -> str:
-        """生成ETC号（参考客车rtx方式）"""
+    def generate_etc_sn(car_num: str = None, operator_code: str = None) -> str:
+        """生成ETC号（支持运营商编码联动）"""
         try:
-            # 从车牌号获取省份
-            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+            from apps.etc_apply.services.rtx.core_service import CoreService
             
-            # 省份简称到代码的映射（与DataFactory保持一致）
-            province_prefix = {
-                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                '琼': '4600', '粤': '4400'
-            }
-            
-            # 获取省份代码
-            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+            # 🔥 新逻辑：优先根据运营商编码生成设备号前缀
+            if operator_code:
+                prefix = CoreService.get_operator_prefix_by_code(operator_code)
+                print(f"[INFO] 根据运营商编码 {operator_code} 生成ETC号，前缀: {prefix}")
+            else:
+                # 兜底方案：从车牌号获取省份
+                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+                
+                # 省份简称到代码的映射（与DataFactory保持一致）
+                province_prefix = {
+                    '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
+                    '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
+                    '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
+                    '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
+                    '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
+                    '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
+                    '琼': '4600', '粤': '4400'
+                }
+                
+                prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+                print(f"[INFO] 根据车牌省份 {province_abbr} 生成ETC号，前缀: {prefix}（兜底方案）")
             
             # ETC号总长度20位，省份代码4位，剩余16位随机数字
             etc_length = 20
@@ -97,28 +104,36 @@ class TruckDataService:
             # 异常时使用默认苏州代码
             prefix = '3200'
             suffix = ''.join([str(random.randint(0, 9)) for _ in range(16)])
+            print(f"[ERROR] 生成ETC号异常，使用默认前缀: {prefix}, 错误: {str(e)}")
             return prefix + suffix
     
     @staticmethod
-    def generate_obu_no(car_num: str = None) -> str:
-        """生成OBU号（参考客车rtx方式）"""
+    def generate_obu_no(car_num: str = None, operator_code: str = None) -> str:
+        """生成OBU号（支持运营商编码联动）"""
         try:
-            # 从车牌号获取省份
-            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+            from apps.etc_apply.services.rtx.core_service import CoreService
             
-            # 省份简称到代码的映射（与DataFactory保持一致）
-            province_prefix = {
-                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                '琼': '4600', '粤': '4400'
-            }
-            
-            # 获取省份代码
-            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+            # 🔥 新逻辑：优先根据运营商编码生成设备号前缀
+            if operator_code:
+                prefix = CoreService.get_operator_prefix_by_code(operator_code)
+                print(f"[INFO] 根据运营商编码 {operator_code} 生成OBU号，前缀: {prefix}")
+            else:
+                # 兜底方案：从车牌号获取省份
+                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+                
+                # 省份简称到代码的映射（与DataFactory保持一致）
+                province_prefix = {
+                    '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
+                    '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
+                    '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
+                    '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
+                    '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
+                    '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
+                    '琼': '4600', '粤': '4400'
+                }
+                
+                prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+                print(f"[INFO] 根据车牌省份 {province_abbr} 生成OBU号，前缀: {prefix}（兜底方案）")
             
             # OBU号总长度16位，省份代码4位，剩余12位随机数字
             obu_length = 16
@@ -131,15 +146,44 @@ class TruckDataService:
             # 异常时使用默认苏州代码
             prefix = '3200'
             suffix = ''.join([str(random.randint(0, 9)) for _ in range(12)])
+            print(f"[ERROR] 生成OBU号异常，使用默认前缀: {prefix}, 错误: {str(e)}")
             return prefix + suffix
     
     @staticmethod
     def update_truck_user_final_status(car_num: str) -> None:
         """更新货车用户最终状态（包含ETC号和OBU号）"""
         try:
-            # 生成ETC号和OBU号
-            etc_sn = TruckDataService.generate_etc_sn(car_num)
-            obu_no = TruckDataService.generate_obu_no(car_num)
+            # 🔥 查询运营商信息以获取运营商编码
+            operator_code = None
+            try:
+                from apps.etc_apply.services.rtx.core_service import CoreService
+                
+                # 从truck_user表查询运营商ID
+                conf = TruckCoreService.get_hcb_mysql_config()
+                db = MySQLUtil(**conf)
+                db.connect()
+                
+                query = """
+                    SELECT operator_id FROM hcb.hcb_truck_user 
+                    WHERE car_num = %s AND status = '1' 
+                    ORDER BY create_time DESC LIMIT 1
+                """
+                result = db.query(query, (car_num,))
+                db.close()
+                
+                if result and len(result) > 0:
+                    operator_id = result[0].get('operator_id')
+                    if operator_id:
+                        # 通过运营商ID获取运营商编码
+                        operator_code = CoreService._get_operator_code_by_id(operator_id)
+                        print(f"[INFO] 货车最终状态更新 - 从运营商ID获取编码: {operator_id} -> {operator_code}")
+                
+            except Exception as e:
+                print(f"[WARNING] 查询运营商编码失败，将使用车牌前缀: {str(e)}")
+            
+            # 🔥 生成ETC号和OBU号 - 传递运营商编码
+            etc_sn = TruckDataService.generate_etc_sn(car_num, operator_code)
+            obu_no = TruckDataService.generate_obu_no(car_num, operator_code)
             
             # 更新数据库
             TruckDataService.update_truck_user_obu_info(car_num, obu_no, etc_sn)
