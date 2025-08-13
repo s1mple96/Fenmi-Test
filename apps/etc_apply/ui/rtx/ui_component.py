@@ -13,7 +13,6 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont, QDragEnterEvent, QDropEvent
 from common.mysql_util import MySQLUtil
 from common.path_util import resource_path
-from apps.etc_apply.services.rtx.core_service import CoreService
 
 
 # ==================== 验证码对话框 ====================
@@ -21,6 +20,7 @@ from apps.etc_apply.services.rtx.core_service import CoreService
 class VerifyCodeDialog(QDialog):
     """验证码输入对话框"""
     def __init__(self, parent=None, on_get_code=None, on_confirm=None):
+        from apps.etc_apply.services.rtx.core_service import CoreService
         super().__init__(parent)
         self.setWindowTitle("验证码")
         self.setFixedSize(300, 200)
@@ -28,6 +28,7 @@ class VerifyCodeDialog(QDialog):
         self.on_confirm = on_confirm
         
         # 从配置文件获取倒计时时间
+        from apps.etc_apply.services.rtx.core_service import CoreService
         ui_config = CoreService.get_ui_config()
         self.countdown = ui_config.get('verify_code_timer_duration', 60)
         
@@ -72,6 +73,7 @@ class VerifyCodeDialog(QDialog):
 
     def start_timer(self):
         # 从配置文件获取倒计时时间
+        from apps.etc_apply.services.rtx.core_service import CoreService
         ui_config = CoreService.get_ui_config()
         self.countdown = ui_config.get('verify_code_timer_duration', 60)
         self.get_code_btn.setEnabled(False)
@@ -302,6 +304,7 @@ class ProvinceDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
+        from apps.etc_apply.services.rtx.core_service import CoreService
         layout = QVBoxLayout()
         title_label = QLabel("请选择省份")
         title_label.setAlignment(Qt.AlignCenter)
@@ -309,6 +312,7 @@ class ProvinceDialog(QDialog):
         layout.addWidget(title_label)
 
         # 获取热门省份配置
+        from apps.etc_apply.services.rtx.core_service import CoreService
         ui_config = CoreService.get_ui_config()
         hot_provinces = ui_config.get('hot_provinces', ['苏', '桂', '黑', '蒙', '湘', '川'])
         
@@ -399,6 +403,7 @@ class ProductSelectDialog(QDialog):
     _last_product = None
     
     def __init__(self, parent=None):
+        from apps.etc_apply.services.rtx.core_service import CoreService
         super().__init__(parent)
         self.setWindowTitle("选择产品")
         self.setFixedSize(400, 250)  # 增加高度以容纳提示语
@@ -442,10 +447,12 @@ class ProductSelectDialog(QDialog):
     def get_mysql_config(self):
         """获取MySQL连接配置"""
         # 使用CoreService统一读取配置
+        from apps.etc_apply.services.rtx.core_service import CoreService
         return CoreService.get_rtx_mysql_config()
 
     def update_mock_config(self, enable=True):
         """更新Mock数据配置"""
+        from apps.etc_apply.services.rtx.core_service import CoreService
         try:
             mysql_conf = self.get_mysql_config()
             if not mysql_conf:
@@ -604,6 +611,7 @@ class ProductSelectDialog(QDialog):
 
     def _load_products_for_operator(self, operator):
         """直接加载指定运营商的产品，不触发Mock确认对话框"""
+        from apps.etc_apply.services.rtx.core_service import CoreService
         current_operator = operator
         print(f"直接加载运营商产品: {current_operator}")
         
@@ -695,6 +703,7 @@ class TruckProductSelectDialog(QDialog):
         layout = QVBoxLayout()
         
         # 添加测试专用渠道提示标签
+        from apps.etc_apply.services.rtx.core_service import CoreService
         business_config = CoreService.get_business_config()
         default_verify_code = business_config.get('default_verify_code', '13797173255')
         warning_text = f'⚠️ 【测试专用渠道手机号】：{default_verify_code} 请勿擅自修改系统数据！'
@@ -734,6 +743,7 @@ class TruckProductSelectDialog(QDialog):
 
     def get_mysql_config(self):
         """获取MySQL连接配置"""
+        from apps.etc_apply.services.rtx.core_service import CoreService
         return CoreService.get_hcb_mysql_config()
 
     def update_mock_config(self, enable=True):
@@ -926,6 +936,7 @@ class TruckProductSelectDialog(QDialog):
 
     def _load_products_for_operator(self, operator):
         """根据运营商ID查询货车产品"""
+        from apps.etc_apply.services.rtx.core_service import CoreService
         operator_id = operator.get('id')
         operator_name = operator.get('name')
         print(f"根据运营商ID查询货车产品: {operator_name} (ID: {operator_id})")
