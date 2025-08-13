@@ -99,6 +99,9 @@ hiddenimports = [
     'certifi',
     'charset_normalizer',
     'idna',
+    # HTML解析（VIN获取功能需要）
+    'bs4',
+    'beautifulsoup4',
     # 数据库相关模块（必需）
     'pymysql',
     'pymysql.cursors',
@@ -131,8 +134,8 @@ excludes = [
     'asyncio', 'aiohttp', 'websockets', 'twisted', 'gevent', 'eventlet',
     'greenlet', 'uvloop', 'httpx', 'requests_toolbelt',
     
-    # 网页抓取
-    'lxml', 'beautifulsoup4', 'selenium', 'playwright', 'puppeteer',
+    # 网页抓取（保留beautifulsoup4和requests）
+    'lxml', 'selenium', 'playwright', 'puppeteer',
     'scrapy', 'pyppeteer', 'requests_html', 'pyquery', 'feedparser',
     'newspaper3k', 'readability', 'trafilatura', 'newspaper',
     'feedfinder', 'feedsearch', 'feedfinder2', 'feedfinder3',
@@ -147,10 +150,26 @@ excludes = [
     # 未使用的Qt WebEngine相关（显著减小体积）
     'PyQt5.QtWebEngine', 'PyQt5.QtWebEngineCore', 'PyQt5.QtWebEngineWidgets',
 
-    # SSH/加密相关（主程序未使用）
+    # SSH/加密相关（ETC申办系统不使用）
     'paramiko', 'cryptography', 'bcrypt', 'nacl', 'PyNaCl',
-    # 数据生成相关（体积大且非核心功能）
+    # 数据生成相关（ETC申办不需要，仅用于独立的数据生成器）
     'faker', 'text_unidecode',
+    
+    # 数据库相关（ETC申办系统不使用）
+    'redis', 'pymongo', 'mongodb',
+    
+    # 系统工具（ETC申办系统不使用）
+    'subprocess', 'multiprocessing', 'concurrent',
+    
+    # XML和高级HTML解析（只需要基本的beautifulsoup4）
+    'lxml', 'html5lib', 'xml', 'xmltodict',
+    
+    # 图像处理
+    'PIL', 'Pillow', 'cv2', 'opencv-python', 'skimage',
+    
+    # 测试框架
+    'unittest', 'pytest', 'nose', 'mock',
+    
     # 更多未使用的模块
     'PIL', 'Pillow', 'cv2', 'opencv', 'scipy', 'numpy', 'pandas',
     'matplotlib', 'seaborn', 'plotly', 'bokeh', 'jupyter', 'IPython',
@@ -160,7 +179,7 @@ excludes = [
     'sqlalchemy', 'alembic', 'psycopg2', 'cx_oracle', 'sqlite3',
     'asyncio', 'aiohttp', 'websockets', 'twisted', 'gevent', 'eventlet',
     'greenlet', 'uvloop', 'httpx', 'requests_toolbelt', 'lxml',
-    'beautifulsoup4', 'selenium', 'playwright', 'puppeteer', 'scrapy',
+    'selenium', 'playwright', 'puppeteer', 'scrapy',
     'pyppeteer', 'requests_html', 'pyquery', 'feedparser', 'newspaper3k',
     'readability', 'trafilatura', 'newspaper', 'feedfinder',
     'tkinter', 'wx', 'kivy', 'pygame', 'pyglet', 'arcade',
@@ -238,7 +257,11 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,  # Windows 下启用 strip 可能不稳定，关闭
     upx=True,    # 使用UPX压缩（若 ensure_upx 成功会生效）
-    upx_exclude=['VCRUNTIME140.dll', 'python3.dll'],  # 排除可能不稳定的DLL
+    upx_exclude=[
+        'VCRUNTIME140.dll', 'python3.dll', 'python39.dll',
+        'Qt5Core.dll', 'Qt5Gui.dll', 'Qt5Widgets.dll',  # Qt核心库不压缩，避免启动慢
+        'libssl-1_1-x64.dll', 'libcrypto-1_1-x64.dll'   # SSL库不压缩
+    ],
     runtime_tmpdir=None,
     console=False,  # 无控制台窗口
     disable_windowed_traceback=False,
@@ -275,7 +298,11 @@ def ensure_upx():
         result = subprocess.run(['upx', '-V'], capture_output=True, text=True)
         if result.returncode == 0:
             print("✅ 已检测到本地 UPX")
-            return True
+            # 测试UPX是否正常工作
+            test_result = subprocess.run(['upx', '--help'], capture_output=True, text=True)
+            if test_result.returncode == 0:
+                print("✅ UPX 功能正常")
+                return True
     except Exception:
         pass
     # 尝试下载 Windows x64 版 upx
@@ -349,12 +376,27 @@ def build_exe():
                 size_mb = os.path.getsize(exe_path) / (1024 * 1024)
                 print(f"📊 exe文件大小: {size_mb:.2f} MB")
                 
+                # 检查UPX是否真的生效了
+                try:
+                    upx_test = subprocess.run(['upx', '-t', exe_path], capture_output=True, text=True)
+                    if upx_test.returncode == 0:
+                        print("✅ UPX 压缩已生效")
+                    else:
+                        print("⚠️ UPX 压缩未生效，可能需要手动压缩")
+                except:
+                    print("⚠️ 无法检测 UPX 压缩状态")
+                
                 # 重命名为中文名称
                 new_name = 'dist/ETC申办系统.exe'
                 if os.path.exists(new_name):
                     os.remove(new_name)
                 os.rename(exe_path, new_name)
                 print(f"✅ 已重命名为: {new_name}")
+                
+                # 提供手动压缩建议
+                if size_mb > 50:  # 如果超过50MB，提供优化建议
+                    print(f"💡 文件较大({size_mb:.2f} MB)，可尝试手动UPX压缩:")
+                    print(f"   upx --best --lzma \"{new_name}\"")
             return True
         else:
             print(f"❌ 构建失败，返回码: {return_code}")

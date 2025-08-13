@@ -51,6 +51,7 @@ class DataService:
     
     @staticmethod
     def update_card_user_obu_info(car_num: str, obu_no: str, etc_sn: str, activation_time: str) -> None:
+        
         """更新卡用户OBU信息"""
         try:
             conf = CoreService.get_rtx_mysql_config()
@@ -133,17 +134,13 @@ class DataService:
         obn_no = generate_device_no(province_name, "0")
         etc_no = generate_device_no(province_name, "1")
         
-        # 获取设备运营商代码 - 优先级：编码精确匹配 > 名称模糊匹配 > ID映射 > 默认值
+        # 获取设备运营商代码 - 优先级：编码精确匹配 > ID映射 > 默认值
         if operator_code:
             # 最高优先级：使用运营商编码进行精确匹配
             operator_codes = CoreService.get_device_operator_codes_by_operator_code(operator_code)
             print(f"[INFO] 使用运营商编码进行精确匹配: {operator_code}")
-        elif operator_name:
-            # 中等优先级：使用运营商名称进行模糊匹配
-            operator_codes = CoreService.get_device_operator_codes_by_operator_name(operator_name)
-            print(f"[INFO] 使用运营商名称进行模糊匹配: {operator_name}")
         elif operator_id:
-            # 较低优先级：兼容原有的ID方式
+            # 中等优先级：兼容原有的ID方式
             operator_codes = CoreService.get_device_operator_codes_by_product(operator_id)
             print(f"[INFO] 使用运营商ID进行匹配: {operator_id}")
         else:
@@ -163,24 +160,24 @@ class DataService:
             "DEVICE_CATEGORY": "0"
         }
         
-        # OBU设备数据 (TYPE=0) - 使用OBU运营商代码
-        obn_data = base_data.copy()
-        obn_data.update({
-            "NEWSTOCK_ID": uuid.uuid4().hex,
-            "INTERNAL_DEVICE_NO": obn_no,
-            "EXTERNAL_DEVICE_NO": obn_no,
-            "TYPE": "0",
-            "CARD_OPERATORS": operator_codes['obu_code']  # 🔥 OBU使用对应运营商代码
-        })
-        
-        # ETC设备数据 (TYPE=1) - 使用ETC运营商代码
+        # ETC设备数据 (TYPE=0) - 使用ETC运营商代码
         etc_data = base_data.copy()
         etc_data.update({
             "NEWSTOCK_ID": uuid.uuid4().hex,
             "INTERNAL_DEVICE_NO": etc_no,
             "EXTERNAL_DEVICE_NO": etc_no,
-            "TYPE": "1",
+            "TYPE": "0",  # 🔥 修正：数据库定义 0=ETC
             "CARD_OPERATORS": operator_codes['etc_code']  # 🔥 ETC使用对应运营商代码
+        })
+        
+        # OBU设备数据 (TYPE=1) - 使用OBU运营商代码
+        obn_data = base_data.copy()
+        obn_data.update({
+            "NEWSTOCK_ID": uuid.uuid4().hex,
+            "INTERNAL_DEVICE_NO": obn_no,
+            "EXTERNAL_DEVICE_NO": obn_no,
+            "TYPE": "1",  # 🔥 修正：数据库定义 1=OBU
+            "CARD_OPERATORS": operator_codes['obu_code']  # 🔥 OBU使用对应运营商代码
         })
         
         # 插入数据库
@@ -194,16 +191,16 @@ class DataService:
             sql = f"INSERT INTO hcb_newstock ({keys}) VALUES ({vals})"
             db.execute(sql, tuple(row.values()))
         
-        insert_row(obn_data)
         insert_row(etc_data)
+        insert_row(obn_data)
         db.close()
         
         operator_info = operator_code or operator_name or operator_id or "默认"
         print(f"✅ 客车设备入库成功:")
         print(f"   - 车牌号: {car_num}")
         print(f"   - 运营商: {operator_info}")
-        print(f"   - OBU号: {obn_no} (运营商代码: {operator_codes['obu_code']})")
-        print(f"   - ETC号: {etc_no} (运营商代码: {operator_codes['etc_code']})")
+        print(f"   - ETC号: {etc_no} (TYPE=0, 运营商代码: {operator_codes['etc_code']})")
+        print(f"   - OBU号: {obn_no} (TYPE=1, 运营商代码: {operator_codes['obu_code']})")
         
         return {
             'car_num': car_num,

@@ -11,14 +11,17 @@ certifi>=2020.12.0
 charset-normalizer>=2.0.0
 idna>=2.10
 
-# SSH 与加密（被 linux_util/test 用到）
-paramiko>=2.7.0
-cryptography>=3.4.0
-bcrypt>=3.2.0
-asn1crypto>=1.4.0
+# HTML解析（VIN获取功能需要）
+beautifulsoup4>=4.9.0
 
 # GUI 框架
 PyQt5>=5.15.0
 
 # 打包工具（可选）
-# nuitka>=1.0.0 
+# nuitka>=1.0.0
+
+# 以下依赖ETC申办系统不直接使用，但被某些工具类间接依赖：
+# paramiko>=2.7.0  # 仅test/和linux_util用到，ETC申办系统不需要
+# cryptography>=3.4.0  # paramiko的依赖
+# bcrypt>=3.2.0  # paramiko的依赖
+# asn1crypto>=1.4.0  # paramiko的依赖 

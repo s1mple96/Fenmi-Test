@@ -256,7 +256,8 @@ class Core:
 
     def step13_run_stock_in_flow(self):
         try:
-            from common.data_factory import DataFactory
+            # 移除未使用的DataFactory导入，因为相关代码已被注释
+            # from common.data_factory import DataFactory
             
             # 获取车牌号 - 支持多种参数名
             car_num = self.params.get("car_num") or self.params.get("carNum")
@@ -276,6 +277,8 @@ class Core:
             
             # 注释掉原来的设备号生成，现在在insert_device_stock中生成
             """
+            # 如果将来需要恢复设备号生成功能，取消注释以下代码：
+            from common.data_factory import DataFactory
             # 生成设备号
             obu_no = DataFactory.random_obn_number()
             etc_sn = DataFactory.random_etc_number()
@@ -301,20 +304,7 @@ class Core:
                     operator_code = selected_product.get('operator_code')
                     print(f"[INFO] 从选择的产品获取运营商编码: {operator_code}")
             
-            # 如果没有运营商名称，尝试从选择的产品中获取
-            if not operator_name:
-                # 尝试从选择的产品信息中获取运营商名称
-                selected_product = self.params.get('selected_product')
-                if selected_product:
-                    operator_name = CoreService.get_operator_name_from_product(selected_product)
-                    print(f"[INFO] 从选择的产品获取运营商名称: {operator_name}")
-            
-            # 如果还是没有运营商名称，尝试从运营商ID映射获取
-            if not operator_name and operator_id:
-                operator_name = CoreService._get_operator_name_by_id(operator_id)
-                print(f"[INFO] 从运营商ID映射获取运营商名称: {operator_name}")
-            
-            device_result = DataService.insert_device_stock(car_num, operator_id, operator_name, operator_code)
+            device_result = DataService.insert_device_stock(car_num, operator_id, None, operator_code)
             
             # 从device_result中获取生成的设备号，保存到params中供step14使用
             if device_result:
