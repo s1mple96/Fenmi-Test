@@ -114,6 +114,248 @@ def get_last_build_number(job_name):
     return None
 
 
+# 获取项目的构建配置信息
+def get_job_config_info(job_name):
+    """获取Jenkins项目的配置信息，包括分支、构建步骤等"""
+    # 🔥 改进API调用，获取更多信息
+    url = f"{JENKINS_URL}job/{job_name}/api/json?tree=scm[*],property[*],actions[*],lastBuild[actions[*]]"
+    try:
+        resp = requests.get(url, auth=(JENKINS_USER, JENKINS_TOKEN), proxies={"http": None, "https": None})
+        if resp.status_code == 200:
+            data = resp.json()
+            config_info = {
+                'branch': 'test',  # 🔥 默认改为test而不是unknown
+                'deploy_env': '测试环境',
+                'build_steps': []
+            }
+            
+            # 🔥 多种方式获取分支信息
+            branch_found = False
+            
+            # 方法1：从SCM配置获取
+            scm = data.get('scm', {})
+            if scm and 'branches' in scm:
+                branches = scm['branches']
+                if branches and len(branches) > 0:
+                    branch_name = branches[0].get('name', '')
+                    if branch_name:
+                        if 'origin/' in branch_name:
+                            config_info['branch'] = branch_name.replace('origin/', '')
+                        else:
+                            config_info['branch'] = branch_name
+                        branch_found = True
+            
+            # 方法2：从最后一次构建的actions获取
+            if not branch_found:
+                last_build = data.get('lastBuild', {})
+                if last_build and 'actions' in last_build:
+                    for action in last_build['actions']:
+                        # 查找构建参数中的BRANCH
+                        if isinstance(action, dict) and 'parameters' in action:
+                            for param in action['parameters']:
+                                if param.get('name') == 'BRANCH' and param.get('value'):
+                                    branch_value = param['value']
+                                    if 'origin/' in branch_value:
+                                        config_info['branch'] = branch_value.replace('origin/', '')
+                                    else:
+                                        config_info['branch'] = branch_value
+                                    branch_found = True
+                                    break
+                        # 查找Git相关信息
+                        elif isinstance(action, dict) and action.get('_class', '').endswith('GitAction'):
+                            if 'lastBuiltRevision' in action:
+                                revision = action['lastBuiltRevision']
+                                if 'branch' in revision and revision['branch']:
+                                    branches = revision['branch']
+                                    if branches and len(branches) > 0:
+                                        branch_name = branches[0].get('name', '')
+                                        if branch_name:
+                                            if 'origin/' in branch_name:
+                                                config_info['branch'] = branch_name.replace('origin/', '')
+                                            else:
+                                                config_info['branch'] = branch_name
+                                            branch_found = True
+                                            break
+                        if branch_found:
+                            break
+            
+            # 方法3：从job的property参数获取
+            if not branch_found:
+                properties = data.get('property', [])
+                for prop in properties:
+                    if isinstance(prop, dict) and 'parameterDefinitions' in prop:
+                        for param_def in prop['parameterDefinitions']:
+                            if param_def.get('name') == 'BRANCH' and param_def.get('defaultParameterValue', {}).get('value'):
+                                branch_value = param_def['defaultParameterValue']['value']
+                                if 'origin/' in branch_value:
+                                    config_info['branch'] = branch_value.replace('origin/', '')
+                                else:
+                                    config_info['branch'] = branch_value
+                                break
+            
+            print(f"[DEBUG] 项目 {job_name} 获取到分支: {config_info['branch']}")
+            
+            # 推断构建步骤
+            config_info['build_steps'] = [
+                '📥 代码拉取',
+                '🏗️ 编译打包', 
+                '🚀 自动部署',
+                '✅ 服务重启'
+            ]
+            
+            return config_info
+    except Exception as e:
+        print(f"获取项目配置失败: {job_name}, 错误: {e}")
+    
+    return {
+        'branch': 'test',  # 🔥 默认改为test
+        'deploy_env': '测试环境',
+        'build_steps': ['📥 代码拉取', '🏗️ 编译打包', '🚀 自动部署', '✅ 服务重启']
+    }
+
+
+# 获取项目历史构建时间统计
+def get_job_build_history(job_name, limit=10):
+    """获取项目最近几次构建的时间统计"""
+    url = f"{JENKINS_URL}job/{job_name}/api/json?tree=builds[number,duration,timestamp,result]{{0,{limit}}}"
+    try:
+        resp = requests.get(url, auth=(JENKINS_USER, JENKINS_TOKEN), proxies={"http": None, "https": None})
+        if resp.status_code == 200:
+            data = resp.json()
+            builds = data.get('builds', [])
+            
+            if not builds:
+                return None
+            
+            # 计算平均构建时间（只统计成功的构建）
+            successful_durations = []
+            for build in builds:
+                if build.get('result') == 'SUCCESS' and build.get('duration'):
+                    duration_minutes = build['duration'] / (1000 * 60)  # 转换为分钟
+                    successful_durations.append(duration_minutes)
+            
+            if successful_durations:
+                avg_duration = sum(successful_durations) / len(successful_durations)
+                return {
+                    'avg_duration_minutes': round(avg_duration, 1),
+                    'recent_builds_count': len(builds),
+                    'successful_builds_count': len(successful_durations)
+                }
+    except Exception as e:
+        print(f"获取构建历史失败: {job_name}, 错误: {e}")
+    
+    return None
+
+
+# 批量获取多个项目的构建信息
+def get_jobs_build_info(job_names):
+    """批量获取多个项目的构建信息和时间统计"""
+    jobs_info = {}
+    
+    for job_name in job_names:
+        # 获取配置信息
+        config_info = get_job_config_info(job_name)
+        
+        # 获取历史构建时间
+        history_info = get_job_build_history(job_name)
+        
+        # 估算构建时间
+        if history_info and history_info['avg_duration_minutes'] > 0:
+            estimated_time = max(3, round(history_info['avg_duration_minutes']))
+        else:
+            estimated_time = 5  # 默认5分钟
+        
+        jobs_info[job_name] = {
+            'config': config_info,
+            'history': history_info,
+            'estimated_time': estimated_time
+        }
+    
+    # 🔥 改进的时间估算算法
+    total_estimated_time = calculate_realistic_build_time(jobs_info)
+    
+    return jobs_info, total_estimated_time
+
+
+def calculate_realistic_build_time(jobs_info):
+    """
+    计算更准确的构建时间
+    🔥 基于实际观察优化：3个3分钟项目实际2分钟完成
+    """
+    if not jobs_info:
+        return 5
+    
+    job_count = len(jobs_info)
+    individual_times = [info['estimated_time'] for info in jobs_info.values()]
+    
+    # 🔥 检查历史数据质量，调整可信度
+    reliable_estimates = 0
+    for info in jobs_info.values():
+        if info.get('history') and info['history'].get('successful_builds_count', 0) >= 3:
+            reliable_estimates += 1
+    
+    # 如果历史数据不足，降低预估时间的信任度
+    reliability_factor = min(reliable_estimates / job_count, 1.0) if job_count > 0 else 0.5
+    
+    if job_count == 1:
+        # 单个项目：更保守的开销
+        base_time = individual_times[0]
+        # 🔥 根据历史数据可靠性调整开销
+        if reliability_factor > 0.7:
+            startup_overhead = 1  # 历史数据可靠时，开销更小
+        else:
+            startup_overhead = 2  # 历史数据不足时，保守估计
+        return round(max(base_time + startup_overhead, base_time * 1.2))
+    
+    else:
+        # 多项目并发构建
+        max_time = max(individual_times)
+        avg_time = sum(individual_times) / len(individual_times)
+        
+        # 🔥 基于您的实际情况调整算法
+        # 实际情况：3个3分钟项目 → 2分钟完成，说明并发效果很好
+        
+        if job_count <= 4:
+            # 少数项目并发：直接取最长时间作为基准
+            # 🔥 用户建议：预估耗时取最长的项目时间
+            base_time = max_time  # 直接使用最长项目的时间
+            
+            # 只添加很小的启动开销
+            if reliability_factor > 0.7:
+                # 历史数据可靠：最小开销
+                overhead = max(0.5, job_count * 0.1)  # 非常小的开销
+            else:
+                # 历史数据不足：稍微保守一些
+                overhead = max(1, job_count * 0.2)  # 小开销
+            
+            total_time = base_time + overhead
+        else:
+            # 大量项目：部分串行
+            parallel_capacity = 4  # 您的Jenkins并发能力较好
+            if job_count <= parallel_capacity:
+                # 仍在并发能力内，直接取最长时间
+                base_time = max_time
+                overhead = job_count * 0.3  # 适度开销
+            else:
+                # 超出并发能力，需要排队
+                parallel_time = max_time  # 🔥 并发部分直接取最长时间
+                serial_projects = job_count - parallel_capacity
+                remaining_times = sorted(individual_times)[parallel_capacity:]
+                serial_time = sum(remaining_times[:serial_projects]) * 0.7  # 串行部分
+                base_time = parallel_time + serial_time
+                overhead = 1  # 减少开销
+            
+            total_time = base_time + overhead
+        
+        # 🔥 基于最长时间的上下限设定
+        min_time = max_time  # 🔥 最少时间就是最长项目的时间
+        max_time_limit = max_time + min(2, job_count * 0.5)  # 🔥 更贴近最长时间的上限
+        
+        final_time = max(min_time, min(total_time, max_time_limit))
+        
+        return round(final_time)
+
+
 # 企业微信通知
 def send_wechat_msg(content):
     data = {
@@ -275,6 +517,117 @@ def send_wechat_msg_grouped(build_results, skipped_jobs, commit_msgs_map):
         return resp.status_code == 200
     except Exception as e:
         print(f"WECHAT ERROR: {e}")
+        return False
+
+
+def send_wechat_start_notification(to_build_jobs, skipped_jobs):
+    """发送构建开始通知（使用真实Jenkins数据）"""
+    import datetime
+    now = datetime.datetime.now()
+    start_time = now.strftime('%Y-%m-%d %H:%M:%S')
+    
+    msg = "# 🚀 **[Jenkins]项目构建启动通知**\n"
+    msg += "---\n"
+    
+    if to_build_jobs:
+        # 🔥 获取真实的Jenkins项目信息和时间统计
+        print("正在获取Jenkins项目构建信息...")
+        try:
+            jobs_info, total_estimated_time = get_jobs_build_info(to_build_jobs)
+            estimated_finish = now + datetime.timedelta(minutes=total_estimated_time)
+            finish_time = estimated_finish.strftime('%H:%M')
+        except Exception as e:
+            print(f"获取Jenkins信息失败，使用默认值: {e}")
+            total_estimated_time = max(5, len(to_build_jobs) * 3)
+            estimated_finish = now + datetime.timedelta(minutes=total_estimated_time)
+            finish_time = estimated_finish.strftime('%H:%M')
+            jobs_info = {}
+        
+        msg += "## 📦 **正在构建的项目**\n"
+        for i, job in enumerate(to_build_jobs, 1):
+            job_info = jobs_info.get(job, {})
+            estimated_time = job_info.get('estimated_time', 5)
+            
+            # 显示项目和预估时间
+            msg += f"{i}. **{job}** `预计: {estimated_time}分钟`\n"
+            
+            # 如果有历史构建数据，显示统计信息
+            if job_info.get('history'):
+                history = job_info['history']
+                msg += f"   *基于最近{history['successful_builds_count']}次成功构建的平均时间*\n"
+        msg += "\n"
+        
+        # 🔥 构建内容说明（基于真实配置）
+        msg += "## 🔧 **构建内容**\n"
+        
+        # 尝试获取第一个项目的配置作为示例
+        sample_job = to_build_jobs[0] if to_build_jobs else None
+        sample_config = jobs_info.get(sample_job, {}).get('config', {}) if sample_job else {}
+        
+        branch = sample_config.get('branch', 'test')
+        build_steps = sample_config.get('build_steps', [
+            '📥 代码拉取', '🏗️ 编译打包', '🚀 自动部署', '✅ 服务重启'
+        ])
+        
+        msg += f"- ** 代码拉取**: 从 `{branch}` 分支获取最新代码\n"
+        msg += f"- ** 编译打包**: 执行完整的构建流程\n"
+        msg += f"- ** 自动部署**: 部署到测试环境\n"
+        msg += f"- ** 服务重启**: 重启相关应用服务\n"
+        
+        # 如果有多个项目，说明是并发构建
+        if len(to_build_jobs) > 1:
+            msg += f"- **⚡ 并发执行**: {len(to_build_jobs)}个项目同时构建\n"
+        msg += "\n"
+    
+    if skipped_jobs:
+        msg += "## ⏭️ **跳过的项目**\n"
+        for job in skipped_jobs:
+            msg += f"- **{job}** *(正在构建中)*\n"
+        msg += "\n"
+    
+    msg += "## ⏰ **时间信息**\n"
+    msg += f"- **开始时间**: {start_time}\n"
+    if 'total_estimated_time' in locals():
+        msg += f"- **预计完成**: 今日 {finish_time} 左右\n"
+        msg += f"- **预计耗时**: {total_estimated_time} 分钟\n"
+        
+        # 🔥 简化时间说明
+        if len(to_build_jobs) > 1:
+            msg += f"- **构建模式**: 并发构建 ({len(to_build_jobs)}个项目)\n"
+    else:
+        estimated_duration = max(5, len(to_build_jobs) * 3)
+        estimated_finish = now + datetime.timedelta(minutes=estimated_duration)
+        finish_time = estimated_finish.strftime('%H:%M')
+        msg += f"- **预计完成**: 今日 {finish_time} 左右\n"
+        msg += f"- **预计耗时**: {estimated_duration} 分钟 *(默认估算)*\n"
+    msg += "\n"
+    
+    msg += "## 📢 **重要提醒**\n"
+    msg += "> 🔄 **项目构建进行中，如您正在测试相关系统时遇到服务异常或功能不可用，**\n"
+    msg += "> **请耐心等待构建完成。期间可能出现短暂的服务中断，属于正常现象。**\n\n"
+    
+    msg += "> 💡 **构建完成后将自动发送结果通知，请关注后续消息。**\n"
+    msg += "> **如有紧急问题，请联系开发团队。**\n\n"
+    
+    msg += "---\n"
+    msg += f"🤖 **自动通知** | 🕒 **{start_time}**"
+    
+    data = {
+        "msgtype": "markdown",
+        "markdown": {"content": msg}
+    }
+    
+    try:
+        resp = requests.post(
+            WECHAT_WEBHOOK,
+            json=data,
+            timeout=5,
+            proxies={"http": None, "https": None}
+        )
+        print(f"WECHAT START DEBUG: status={resp.status_code}, text={resp.text}")
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"WECHAT START ERROR: {e}")
         return False
 
 
@@ -494,6 +847,17 @@ class JenkinsBuilderApp:
             self.log('没有需要构建的项目。')
             self.build_btn.config(state='normal')
             return
+        
+        # 🔥 发送开始构建通知
+        self.log('发送构建开始通知...')
+        try:
+            if send_wechat_start_notification(to_build, skipped_jobs):
+                self.log('✅ 开始构建通知发送成功')
+            else:
+                self.log('❌ 开始构建通知发送失败')
+        except Exception as e:
+            self.log(f'❌ 发送开始通知异常: {str(e)}')
+        
         # 启动后台线程
         threading.Thread(target=self.build_projects, args=(to_build, skipped_jobs), daemon=True).start()
 
