@@ -86,13 +86,13 @@ class DuplicateCheckService:
         """检查货车用户表"""
         try:
             # 通过五要素查询：手机号、身份证号、车牌号、姓名
+            # 🔥 临时修改：移除了 AND STATUS != '4' 的过滤条件，查询所有状态的记录
             query = """
                 SELECT 
                     TRUCKUSER_ID, CAR_NUM, NAME, PHONE, ID_CODE, STATUS, 
                     OBU_NO, ETC_SN, ETCSTATUS, CREATE_TIME, VEHICLECOLOR
                 FROM hcb.hcb_truckuser 
                 WHERE (PHONE = %s OR ID_CODE = %s OR CAR_NUM = %s OR NAME = %s)
-                  AND STATUS != '4'  -- 排除已注销的记录
                 ORDER BY CREATE_TIME DESC
             """
             
@@ -134,13 +134,13 @@ class DuplicateCheckService:
         """检查申办记录表"""
         try:
             # 通过五要素查询申办记录
+            # 🔥 临时修改：移除了 AND ETCSTATUS IN (...) 的过滤条件，查询所有状态的记录
             query = """
                 SELECT 
                     TRUCKETCAPPLY_ID, CAR_NUM, CARD_HOLDER, PHONE, IDCODE, 
                     ETCSTATUS, ETC_SN, OBU_NO, CREATE_TIME, VEHICLECOLOR
                 FROM hcb.hcb_trucketcapply 
                 WHERE (PHONE = %s OR IDCODE = %s OR CAR_NUM = %s OR CARD_HOLDER = %s)
-                  AND ETCSTATUS IN ('1', '2', '3', '4', '5', '6', '7', '11', '12')  -- 包含所有有效的申办状态
                 ORDER BY CREATE_TIME DESC
             """
             
@@ -386,27 +386,10 @@ class DuplicateCheckService:
             db.connect()
             
             modified_count = 0
-            skipped_count = 0
             
             for record in existing_records:
-                # 🔥 只修改状态为"正常"的记录
-                need_modify = False
-                skip_reason = ""
-                
-                if record['table'] == 'hcb_truckuser':
-                    # hcb_truckuser.STATUS: 只修改'1'(正常)状态的记录
-                    if record['current_status'] == '1':
-                        need_modify = True
-                    else:
-                        skip_reason = f"STATUS={record['current_status']}({self._get_truckuser_status_description(record['current_status'])})"
-                        
-                elif record['table'] == 'hcb_trucketcapply':
-                    # hcb_trucketcapply.ETCSTATUS: 只修改'6'(已完成)、'7'(已激活)等正常完成状态的记录
-                    normal_statuses = ['6', '7']  # 已完成、已激活
-                    if record['current_status'] in normal_statuses:
-                        need_modify = True
-                    else:
-                        skip_reason = f"ETCSTATUS={record['current_status']}({self._get_trucketcapply_status_description(record['current_status'])})"
+                # 🔥 临时修改：修改所有找到的记录，不进行状态过滤
+                need_modify = True  # 强制修改所有记录
                 
                 if need_modify:
                     backup_record = self._create_backup_record(record)
@@ -424,21 +407,14 @@ class DuplicateCheckService:
                         if success:
                             modified_count += 1
                             self.backup_records.append(backup_record)
-                else:
-                    skipped_count += 1
-                    self.log_service.info(f"跳过{record['table']}记录 {record['id']}，原因：{skip_reason}，无需修改")
             
             db.close()
             
-            self.log_service.info(f"状态修改结果：成功修改{modified_count}条，跳过{skipped_count}条")
+            self.log_service.info(f"状态修改结果（临时修改-无状态过滤）：成功修改{modified_count}条")
             
             if modified_count > 0:
                 # 保存备份记录到文件（防止程序异常时数据丢失）
                 self._save_backup_to_file()
-                return True
-            elif skipped_count > 0:
-                # 即使没有修改记录，但如果跳过了一些记录，也认为操作成功（允许继续申办）
-                self.log_service.info("所有重复记录都无需修改状态，允许继续申办")
                 return True
             else:
                 self.log_service.warning("没有找到任何需要处理的记录")
@@ -712,40 +688,17 @@ class DuplicateCheckService:
     
     def filter_records_need_modify(self, existing_records: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         """
-        过滤需要修改状态的记录
+        过滤需要修改状态的记录 - 临时修改：所有记录都需要修改
         :param existing_records: 所有重复记录
         :return: (需要修改的记录列表, 跳过的记录列表)
         """
         records_to_modify = []
         records_to_skip = []
         
+        # 🔥 临时修改：让所有记录都需要被修改，不进行状态过滤
         for record in existing_records:
-            need_modify = False
-            skip_reason = ""
-            
-            if record['table'] == 'hcb_truckuser':
-                # hcb_truckuser.STATUS: 只修改'1'(正常)状态的记录
-                if record['current_status'] == '1':
-                    need_modify = True
-                else:
-                    skip_reason = f"STATUS={record['current_status']}({self._get_truckuser_status_description(record['current_status'])})"
-                    
-            elif record['table'] == 'hcb_trucketcapply':
-                # hcb_trucketcapply.ETCSTATUS: 只修改'6'(已完成)、'7'(已激活)等正常完成状态的记录
-                normal_statuses = ['6', '7']  # 已完成、已激活
-                if record['current_status'] in normal_statuses:
-                    need_modify = True
-                else:
-                    skip_reason = f"ETCSTATUS={record['current_status']}({self._get_trucketcapply_status_description(record['current_status'])})"
-            
-            if need_modify:
-                records_to_modify.append(record)
-            else:
-                # 添加跳过原因到记录中
-                record_with_reason = record.copy()
-                record_with_reason['skip_reason'] = skip_reason
-                records_to_skip.append(record_with_reason)
+            records_to_modify.append(record)
         
-        self.log_service.info(f"过滤结果：需要修改{len(records_to_modify)}条，跳过{len(records_to_skip)}条")
+        self.log_service.info(f"过滤结果（临时修改-无状态过滤）：需要修改{len(records_to_modify)}条，跳过{len(records_to_skip)}条")
         
         return records_to_modify, records_to_skip 
