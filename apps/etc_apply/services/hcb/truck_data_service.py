@@ -5,7 +5,8 @@
 import random
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, List, Any
+
 from common.mysql_util import MySQLUtil
 from apps.etc_apply.services.hcb.truck_core_service import TruckCoreService
 
@@ -13,56 +14,57 @@ from apps.etc_apply.services.hcb.truck_core_service import TruckCoreService
 class TruckDataService:
     """货车数据服务 - 整合数据库操作和参数处理"""
     
-    # ==================== 数据库操作 ====================
-    
     @staticmethod
-    def update_truck_apply_status(truck_etc_apply_id: str) -> None:
-        """更新货车申请表状态"""
+    def insert_truck_stock_data(data_list: List[Dict[str, Any]]) -> List[str]:
+        """批量插入货车库存数据"""
+        if not data_list:
+            return []
+        
+        ids = []
         try:
             conf = TruckCoreService.get_hcb_mysql_config()
             db = MySQLUtil(**conf)
             db.connect()
-            sql = "UPDATE hcb.hcb_trucketcapply t SET t.ETCSTATUS = '11' WHERE t.TRUCKETCAPPLY_ID = %s"
-            db.execute(sql, (truck_etc_apply_id,))
+            
+            for data in data_list:
+                # 生成UUID作为主键
+                stock_id = str(uuid.uuid4()).replace('-', '')
+                data['NEWSTOCK_ID'] = stock_id
+                
+                # 插入数据
+                columns = ', '.join(data.keys())
+                placeholders = ', '.join(['%s'] * len(data))
+                sql = f"INSERT INTO hcb_newstock ({columns}) VALUES ({placeholders})"
+                
+                db.execute(sql, tuple(data.values()))
+                ids.append(stock_id)
+            
             db.close()
+            print(f"✅ 批量插入货车库存数据成功，共 {len(ids)} 条")
+            return ids
+            
         except Exception as e:
-            error_msg = TruckCoreService.format_database_error("更新货车申请表状态", e)
-            raise Exception(error_msg)
-    
-    @staticmethod
-    def update_truck_user_status(car_num: str) -> None:
-        """更新货车用户状态"""
-        try:
-            conf = TruckCoreService.get_hcb_mysql_config()
-            db = MySQLUtil(**conf)
-            db.connect()
-            sql = """
-            UPDATE hcb.hcb_truckuser t 
-            SET t.STATUS = '1', t.ETCSTATUS = '1', t.ACTIVATION_TIME = NOW() 
-            WHERE t.CAR_NUM = %s
-            """
-            db.execute(sql, (car_num,))
-            db.close()
-        except Exception as e:
-            error_msg = TruckCoreService.format_database_error("更新货车用户状态", e)
+            error_msg = f"批量插入货车库存数据失败: {str(e)}"
+            print(f"[ERROR] {error_msg}")
             raise Exception(error_msg)
     
     @staticmethod
     def update_truck_user_obu_info(car_num: str, obu_no: str, etc_sn: str) -> None:
-        """更新货车用户OBU信息"""
+        """更新货车用户的OBU信息"""
         try:
             conf = TruckCoreService.get_hcb_mysql_config()
             db = MySQLUtil(**conf)
             db.connect()
-            sql = """
-            UPDATE hcb.hcb_truckuser t 
-            SET t.ETC_SN = %s, t.OBU_NO = %s, t.ACTIVATION_TIME = NOW() 
-            WHERE t.CAR_NUM = %s
-            """
-            db.execute(sql, (etc_sn, obu_no, car_num))
+            
+            sql = "UPDATE hcb_truckuser SET OBU_NO = %s, ETC_SN = %s WHERE CAR_NUM = %s"
+            db.execute(sql, (obu_no, etc_sn, car_num))
             db.close()
+            
+            print(f"✅ 更新货车用户OBU信息成功: 车牌={car_num}, OBU={obu_no}, ETC={etc_sn}")
+            
         except Exception as e:
-            error_msg = TruckCoreService.format_database_error("更新货车用户OBU信息", e)
+            error_msg = f"更新货车用户OBU信息失败: {str(e)}"
+            print(f"[ERROR] {error_msg}")
             raise Exception(error_msg)
     
     @staticmethod
@@ -76,21 +78,9 @@ class TruckDataService:
                 prefix = CoreService.get_operator_prefix_by_code(operator_code)
                 print(f"[INFO] 根据运营商编码 {operator_code} 生成ETC号，前缀: {prefix}")
             else:
-                # 兜底方案：从车牌号获取省份
-            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
-            
-            # 省份简称到代码的映射（与DataFactory保持一致）
-            province_prefix = {
-                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                '琼': '4600', '粤': '4400'
-            }
-            
-            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+                # 兜底方案：从车牌号获取省份，使用统一的省份前缀映射
+                prefix = TruckDataService._get_province_prefix(car_num)
+                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
                 print(f"[INFO] 根据车牌省份 {province_abbr} 生成ETC号，前缀: {prefix}（兜底方案）")
             
             # ETC号总长度20位，省份代码4位，剩余16位随机数字
@@ -101,8 +91,8 @@ class TruckDataService:
             return prefix + suffix
             
         except Exception as e:
-            # 异常时使用默认苏州代码
-            prefix = '3200'
+            # 异常时使用默认江苏代码
+            prefix = '3201'
             suffix = ''.join([str(random.randint(0, 9)) for _ in range(16)])
             print(f"[ERROR] 生成ETC号异常，使用默认前缀: {prefix}, 错误: {str(e)}")
             return prefix + suffix
@@ -118,21 +108,9 @@ class TruckDataService:
                 prefix = CoreService.get_operator_prefix_by_code(operator_code)
                 print(f"[INFO] 根据运营商编码 {operator_code} 生成OBU号，前缀: {prefix}")
             else:
-                # 兜底方案：从车牌号获取省份
-            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
-            
-            # 省份简称到代码的映射（与DataFactory保持一致）
-            province_prefix = {
-                '京': '1100', '津': '1200', '沪': '3100', '渝': '5000',
-                '冀': '1300', '豫': '4100', '云': '5300', '辽': '2100', '黑': '2300',
-                '湘': '4300', '皖': '3400', '鲁': '3700', '新': '6500', '苏': '3200',
-                '浙': '3300', '赣': '3600', '鄂': '4200', '桂': '4500', '甘': '6200',
-                '晋': '1400', '蒙': '1500', '陕': '6100', '吉': '2200', '闽': '3500',
-                '贵': '5200', '青': '6300', '藏': '5400', '川': '5100', '宁': '6400', 
-                '琼': '4600', '粤': '4400'
-            }
-            
-            prefix = province_prefix.get(province_abbr, '3200')  # 默认苏州
+                # 兜底方案：从车牌号获取省份，使用统一的省份前缀映射
+                prefix = TruckDataService._get_province_prefix(car_num)
+                province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
                 print(f"[INFO] 根据车牌省份 {province_abbr} 生成OBU号，前缀: {prefix}（兜底方案）")
             
             # OBU号总长度16位，省份代码4位，剩余12位随机数字
@@ -143,11 +121,45 @@ class TruckDataService:
             return prefix + suffix
             
         except Exception as e:
-            # 异常时使用默认苏州代码
-            prefix = '3200'
+            # 异常时使用默认江苏代码
+            prefix = '3201'
             suffix = ''.join([str(random.randint(0, 9)) for _ in range(12)])
             print(f"[ERROR] 生成OBU号异常，使用默认前缀: {prefix}, 错误: {str(e)}")
             return prefix + suffix
+
+    @staticmethod
+    def _get_province_prefix(car_num: str) -> str:
+        """
+        根据车牌号获取省份前缀（统一使用配置文件）
+        :param car_num: 车牌号
+        :return: 省份前缀
+        """
+        try:
+            from apps.etc_apply.services.rtx.core_service import CoreService
+            
+            # 从车牌号提取省份简称
+            province_abbr = car_num[0] if car_num and len(car_num) > 0 else "苏"
+            
+            # 使用配置文件中的省份映射和省份代码
+            device_config = CoreService.get_device_config()
+            province_mapping = device_config.get('province_mapping', {})
+            province_codes = device_config.get('province_codes', {})
+            
+            # 先将省份简称转换为省份全名
+            province_name = province_mapping.get(province_abbr)
+            if province_name:
+                # 再通过省份全名获取前缀
+                prefix = province_codes.get(province_name)
+                if prefix:
+                    return prefix
+            
+            # 如果配置文件中没有，使用DataFactory的映射作为兜底
+            from common.data_factory import DataFactory
+            return DataFactory.PROVINCE_PREFIX.get(province_abbr, '3201')  # 默认江苏
+            
+        except Exception as e:
+            print(f"[ERROR] 获取省份前缀失败: {str(e)}")
+            return '3201'  # 默认江苏
     
     @staticmethod
     def update_truck_user_final_status(car_num: str) -> None:
@@ -296,8 +308,6 @@ class TruckDataService:
         try:
             import uuid
             from datetime import datetime
-            from apps.etc_apply.services.hcb.truck_core_service import TruckCoreService
-            from common.mysql_util import MySQLUtil
             
             conf = TruckCoreService.get_hcb_mysql_config()
             db = MySQLUtil(**conf)

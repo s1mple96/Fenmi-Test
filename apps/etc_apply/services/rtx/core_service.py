@@ -126,16 +126,15 @@ class CoreService:
     @staticmethod
     def get_operator_province_info(operator_code: str) -> Dict[str, Any]:
         """
-        根据运营商编码获取省份信息
+        根据运营商编码获取省份信息（简化版，只包含省份和前缀）
         :param operator_code: 运营商编码
-        :return: 省份信息（包含province、prefix、plate_patterns）
+        :return: 省份信息（包含province、prefix）
         """
         device_config = CoreService.get_device_config()
         operator_province_info = device_config.get('operator_province_info', {})
         default_info = {
             "province": "江苏",
-            "prefix": "3201",
-            "plate_patterns": ["苏A", "苏B", "苏C", "苏D", "苏E", "苏F", "苏G", "苏H", "苏J", "苏K", "苏L", "苏M", "苏N", "苏U"]
+            "prefix": "3201"
         }
         return operator_province_info.get(operator_code, default_info)
     

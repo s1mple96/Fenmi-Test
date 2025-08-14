@@ -166,12 +166,12 @@ class DataService:
             etc_no = generate_device_no_by_prefix(device_prefix, "1")
             print(f"[INFO] 根据运营商编码 {operator_code} 生成设备号，前缀: {device_prefix}")
         else:
-            # 兜底方案：解析车牌号获取省份
-        province_abbr = car_num[0] if car_num else "苏"
-        province_name = province_mapping.get(province_abbr, "江苏")
+            # 兜底方案：解析车牌号获取省份，简化为只按省份关联
+            province_abbr = car_num[0] if car_num else "苏"
+            province_name = province_mapping.get(province_abbr, "江苏")
             obu_no = generate_device_no_by_province(province_name, "0")
             etc_no = generate_device_no_by_province(province_name, "1")
-            print(f"[INFO] 根据车牌省份 {province_name} 生成设备号（兜底方案）")
+            print(f"[INFO] 根据车牌省份 {province_name} 生成设备号，前缀来自配置文件（兜底方案）")
         
         # 获取设备运营商代码 - 优先级：编码精确匹配 > ID映射 > 默认值
         if operator_code:
