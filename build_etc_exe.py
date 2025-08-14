@@ -548,7 +548,7 @@ def main():
     if python_version < (3, 8):
         print(f"⚠️ Python版本较旧: {sys.version}")
         print("   建议使用Python 3.8+以获得更好的打包效果")
-        else:
+    else:
         print(f"✅ Python版本合适: {sys.version}")
     
     # 优化建议
