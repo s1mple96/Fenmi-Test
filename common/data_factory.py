@@ -130,6 +130,26 @@ class DataFactory:
         # 时间戳+随机数，保证唯一性（简化版雪花ID）
         return int(str(int(time.time() * 1000)) + str(random.randint(100, 999)))
 
+    @staticmethod
+    def random_device_id() -> str:
+        """生成随机设备ID"""
+        return ''.join(random.choices('0123456789ABCDEF', k=16))
+    
+    @staticmethod
+    def random_order_id() -> str:
+        """生成随机订单号"""
+        import time
+        timestamp = str(int(time.time()))
+        random_suffix = ''.join(random.choices('0123456789', k=6))
+        return f"ORD{timestamp}{random_suffix}"
+    
+    @staticmethod
+    def random_bank_address() -> str:
+        """生成随机银行地址"""
+        cities = ['北京', '上海', '广州', '深圳', '杭州', '南京', '苏州', '成都']
+        streets = ['中山路', '解放路', '人民路', '建设路', '和平路', '胜利路', '东风路', '西湖路']
+        return f"{random.choice(cities)}市{random.choice(streets)}{random.randint(1, 999)}号"
+
     def random_car_info(self, province='苏', color='蓝色'):
         """
         生成一组车辆信息，包括车牌号和颜色

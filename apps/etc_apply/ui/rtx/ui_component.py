@@ -747,29 +747,28 @@ class TruckProductSelectDialog(QDialog):
         return CoreService.get_hcb_mysql_config()
 
     def update_mock_config(self, enable=True):
-        """更新Mock数据配置（货车版本）- 使用客车系统的rtx.sys_config表"""
+        """更新Mock数据配置（货车版本）- 使用货车系统的hcb.sys_dictionaries表"""
         try:
-            # 使用客车系统的rtx数据库配置
-            from apps.etc_apply.services.rtx.core_service import CoreService
-            mysql_conf = CoreService.get_rtx_mysql_config()
-            if not mysql_conf:
-                return False
-            
-            business_config = CoreService.get_business_config()
-            mock_config_id = business_config.get('mock_config_id', 55)
-            
-            db = MySQLUtil(**mysql_conf)
-            db.connect()
-            value = '1' if enable else '0'
-            sql = f"UPDATE rtx.sys_config t SET t.config_value = %s WHERE t.config_id = {mock_config_id}"
-            db.execute(sql, (value,))
-            db.close()
+            # 使用正确的货车数据服务
+            from apps.etc_apply.services.hcb.truck_data_service import TruckDataService
             
             if enable:
-                print("货车Mock数据已启用（使用rtx.sys_config表）")
+                result = TruckDataService.enable_mock_data()
+                if result:
+                    print("货车Mock数据已启用（使用hcb.sys_dictionaries表）")
+                    return True
+                else:
+                    print("启用货车Mock数据失败")
+                    return False
             else:
-                print("货车Mock数据已关闭（使用rtx.sys_config表）")
-            return True
+                result = TruckDataService.close_mock_data()
+                if result:
+                    print("货车Mock数据已关闭（使用hcb.sys_dictionaries表）")
+                    return True
+                else:
+                    print("关闭货车Mock数据失败")
+                    return False
+                    
         except Exception as e:
             QMessageBox.critical(self, "错误", f"更新Mock配置失败: {str(e)}")
             return False

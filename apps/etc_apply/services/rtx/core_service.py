@@ -256,8 +256,8 @@ class CoreService:
         :return: 设备运营商代码
         """
         CoreService._log_warning(f"⚠️ get_device_operator_code_by_name已废弃，建议使用BZ字段精确匹配")
-            # 返回默认值
-            return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
+        # 返回默认值
+        return "1" if device_type == "1" else "10"  # OBU默认1, ETC默认10
     
 
     
@@ -433,7 +433,7 @@ class CoreService:
                 return name_en
             else:
                 CoreService._log_error(f"❌ BZ字段精确匹配失败: {operator_code}")
-                    return "1"
+                return "1"
                 
         except Exception as e:
             CoreService._log_error(f"通过运营商编码获取设备运营商代码失败: {str(e)}")
