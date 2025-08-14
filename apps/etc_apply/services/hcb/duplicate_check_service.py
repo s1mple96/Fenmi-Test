@@ -438,9 +438,15 @@ class DuplicateCheckService:
     def _modify_truckuser_status(self, db: MySQLUtil, record: Dict, new_status: str) -> bool:
         """修改货车用户表状态"""
         try:
+            # 限制REMARK字段长度，避免数据过长错误
+            # 只保留现有REMARK的最后150个字符，然后追加新的修改记录
             query = """
                 UPDATE hcb.hcb_truckuser 
-                SET STATUS = %s, REMARK = CONCAT(IFNULL(REMARK, ''), '[临时修改状态允许重新申办:', NOW(), ']')
+                SET STATUS = %s, 
+                    REMARK = CONCAT(
+                        RIGHT(IFNULL(REMARK, ''), 150), 
+                        '[临时修改状态允许重新申办:', DATE_FORMAT(NOW(), '%%m-%%d %%H:%%i'), ']'
+                    )
                 WHERE TRUCKUSER_ID = %s
             """
             
@@ -460,9 +466,15 @@ class DuplicateCheckService:
     def _modify_trucketcapply_status(self, db: MySQLUtil, record: Dict, new_status: str) -> bool:
         """修改申办记录表状态"""
         try:
+            # 限制CANCLE_MSG字段长度，避免数据过长错误
+            # 只保留现有CANCLE_MSG的最后150个字符，然后追加新的修改记录
             query = """
                 UPDATE hcb.hcb_trucketcapply 
-                SET ETCSTATUS = %s, CANCLE_MSG = CONCAT(IFNULL(CANCLE_MSG, ''), '[临时修改状态允许重新申办:', NOW(), ']')
+                SET ETCSTATUS = %s, 
+                    CANCLE_MSG = CONCAT(
+                        RIGHT(IFNULL(CANCLE_MSG, ''), 150), 
+                        '[临时修改状态允许重新申办:', DATE_FORMAT(NOW(), '%%m-%%d %%H:%%i'), ']'
+                    )
                 WHERE TRUCKETCAPPLY_ID = %s
             """
             
@@ -554,9 +566,15 @@ class DuplicateCheckService:
     def _restore_truckuser_status(self, db: MySQLUtil, backup_record: Dict) -> bool:
         """恢复货车用户表状态"""
         try:
+            # 限制REMARK字段长度，避免数据过长错误
+            # 只保留现有REMARK的最后150个字符，然后追加新的恢复记录
             query = """
                 UPDATE hcb.hcb_truckuser 
-                SET STATUS = %s, REMARK = CONCAT(IFNULL(REMARK, ''), '[恢复原状态:', NOW(), ']')
+                SET STATUS = %s, 
+                    REMARK = CONCAT(
+                        RIGHT(IFNULL(REMARK, ''), 150), 
+                        '[恢复原状态:', DATE_FORMAT(NOW(), '%%m-%%d %%H:%%i'), ']'
+                    )
                 WHERE TRUCKUSER_ID = %s
             """
             
@@ -576,9 +594,15 @@ class DuplicateCheckService:
     def _restore_trucketcapply_status(self, db: MySQLUtil, backup_record: Dict) -> bool:
         """恢复申办记录表状态"""
         try:
+            # 限制CANCLE_MSG字段长度，避免数据过长错误
+            # 只保留现有CANCLE_MSG的最后150个字符，然后追加新的恢复记录
             query = """
                 UPDATE hcb.hcb_trucketcapply 
-                SET ETCSTATUS = %s, CANCLE_MSG = CONCAT(IFNULL(CANCLE_MSG, ''), '[恢复原状态:', NOW(), ']')
+                SET ETCSTATUS = %s, 
+                    CANCLE_MSG = CONCAT(
+                        RIGHT(IFNULL(CANCLE_MSG, ''), 150), 
+                        '[恢复原状态:', DATE_FORMAT(NOW(), '%%m-%%d %%H:%%i'), ']'
+                    )
                 WHERE TRUCKETCAPPLY_ID = %s
             """
             
