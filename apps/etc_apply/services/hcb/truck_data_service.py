@@ -559,6 +559,66 @@ class TruckDataService:
             error_msg = TruckCoreService.format_database_error("插入货车设备库存", e)
             raise Exception(error_msg)
     
+    @staticmethod
+    def update_truck_apply_status(truck_etc_apply_id: str) -> bool:
+        """更新货车申请表状态为完成"""
+        try:
+            conf = TruckCoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 更新申请表状态为完成（1表示完成状态）
+            query = """
+                UPDATE hcb.hcb_trucketcapply 
+                SET ETCSTATUS = '1'
+                WHERE TRUCKETCAPPLY_ID = %s
+            """
+            
+            affected_rows = db.execute(query, (truck_etc_apply_id,))
+            db.close()
+            
+            if affected_rows > 0:
+                print(f"✅ 已更新申请表状态: {truck_etc_apply_id}")
+                return True
+            else:
+                print(f"⚠️ 未找到申请记录，ID: {truck_etc_apply_id}")
+                return False
+                
+        except Exception as e:
+            error_msg = f"更新申请表状态失败: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            raise Exception(error_msg)
+    
+    @staticmethod
+    def update_truck_user_status(car_num: str) -> bool:
+        """更新货车用户状态为申办完成"""
+        try:
+            conf = TruckCoreService.get_hcb_mysql_config()
+            db = MySQLUtil(**conf)
+            db.connect()
+            
+            # 更新用户状态为完成（1表示申办成功/已激活状态）
+            query = """
+                UPDATE hcb.hcb_truckuser 
+                SET STATUS = '1'
+                WHERE CAR_NUM = %s
+            """
+            
+            affected_rows = db.execute(query, (car_num,))
+            db.close()
+            
+            if affected_rows > 0:
+                print(f"✅ 已更新货车用户状态为申办完成: {car_num}")
+                return True
+            else:
+                print(f"⚠️ 未找到车牌号对应的用户记录: {car_num}")
+                return False
+                
+        except Exception as e:
+            error_msg = f"更新货车用户状态失败: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            raise Exception(error_msg)
+    
     # ==================== 参数处理 ====================
     
     @staticmethod
