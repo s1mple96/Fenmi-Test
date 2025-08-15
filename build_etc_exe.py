@@ -30,6 +30,7 @@ def create_spec_file():
     config_file_slash = config_file.replace('\\', '/')
     app_config_slash = os.path.join(project_root, 'config', 'app_config.json').replace('\\', '/')
     main_file_slash = os.path.join(project_root, 'apps', 'etc_apply', 'main_window.py').replace('\\', '/')
+    logo_file_slash = os.path.join(project_root, 'apps', 'etc_apply', 'config', 'logo.ico').replace('\\', '/')
     
     spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 
@@ -49,6 +50,8 @@ project_root = Path(project_root)
 datas = [
     # ETC申办配置文件
     (r"{config_file_slash}", 'apps/etc_apply/config'),
+    # Logo图标文件
+    (r"{logo_file_slash}", 'apps/etc_apply/config'),
     # 全局配置文件
     (r"{app_config_slash}", 'config'),
 ]
@@ -169,8 +172,8 @@ excludes = [
     'paramiko', 'cryptography', 'bcrypt', 'nacl', 'PyNaCl',
     'pycryptodome', 'keyring', 'pyopenssl',
     
-    # 图像处理（第三方）
-    'PIL', 'Pillow', 'cv2', 'skimage', 'imageio',
+    # 图像处理（第三方，保留Pillow用于图标转换）
+    'cv2', 'skimage', 'imageio',
     'matplotlib.pyplot', 'matplotlib.figure', 'matplotlib.backends',
     
     # 测试框架（第三方）
@@ -331,7 +334,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon=r"{logo_file_slash}",
 )
 '''
     

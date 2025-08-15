@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys  # 导入系统模块，用于程序入口和异常钩子
 import os  # 导入操作系统模块
 
@@ -8,6 +9,7 @@ sys.path.insert(0, project_root)
 
 from PyQt5.QtWidgets import QDialog, QWidget, QVBoxLayout, QTabWidget
 from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QIcon
 from apps.etc_apply.ui.rtx.ui_events import ui_events, excepthook
 from apps.etc_apply.ui.rtx.ui_utils import ui_builder
 
@@ -25,6 +27,26 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
         super().__init__(parent)  # 初始化父类
         self.inputs = {}  # 输入控件字典
         self.current_vehicle_type = "passenger"  # 当前车辆类型
+        
+        # 设置窗口标题和图标
+        self.setWindowTitle('ETC自助申办工具')
+        
+        # 设置窗口图标
+        try:
+            # 优先尝试ICO格式图标
+            ico_path = os.path.join(current_dir, 'config', 'logo.ico')
+            png_path = os.path.join(current_dir, 'config', 'logo.png')
+            
+            if os.path.exists(ico_path):
+                self.setWindowIcon(QIcon(ico_path))
+                print(f"[INFO] 使用ICO图标: {ico_path}")
+            elif os.path.exists(png_path):
+                self.setWindowIcon(QIcon(png_path))
+                print(f"[INFO] 使用PNG图标: {png_path}")
+            else:
+                print(f"[WARNING] Logo文件不存在: {ico_path} 或 {png_path}")
+        except Exception as e:
+            print(f"[WARNING] 设置窗口图标失败: {e}")
         
         # 先创建Tab容器
         self.create_tab_container()
@@ -140,32 +162,8 @@ class EtcApplyWidget(QDialog):  # ETC申办主界面类，继承自QWidget
                     detailed_content += "="*50 + "\n"
                     detailed_content += "🔹 这是一个API接口调用错误\n"
                 
-                # 添加日志文件位置信息
-                try:
-                    # 获取当前exe所在目录
-                    if hasattr(sys, 'frozen') and sys.frozen:
-                        # 打包后的exe环境
-                        exe_dir = os.path.dirname(sys.executable)
-                        log_dir = os.path.join(exe_dir, 'log')
-                    else:
-                        # 开发环境
-                        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                        log_dir = os.path.join(project_root, 'log')
-                    
-                    # 获取今天的日志文件名
-                    from datetime import datetime
-                    today_log = f"run_{datetime.now().strftime('%Y%m%d')}.log"
-                    log_file_path = os.path.join(log_dir, today_log)
-                    
-                    detailed_content += f"🔹 详细日志文件位置: {log_file_path}\n"
-                    if os.path.exists(log_file_path):
-                        detailed_content += f"🔹 日志文件状态: 存在 ({os.path.getsize(log_file_path)} 字节)\n"
-                    else:
-                        detailed_content += f"🔹 日志文件状态: 不存在\n"
-                    
-                    detailed_content += f"🔹 如需更详细的调试信息，请查看上述日志文件\n"
-                except Exception as e:
-                    detailed_content += f"🔹 无法确定日志文件位置: {str(e)}\n"
+                # 添加用户友好的错误提示
+                detailed_content += "🔹 请检查网络连接或联系技术支持\n"
         
         # 创建可滚动的文本显示区域
         text_edit = QTextEdit()

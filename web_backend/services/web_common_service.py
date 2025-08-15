@@ -8,6 +8,8 @@ import re
 import json
 from werkzeug.utils import secure_filename
 
+from apps.etc_apply.services.rtx.core_service import CoreService
+
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
